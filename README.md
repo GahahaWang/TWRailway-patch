@@ -1,12 +1,23 @@
 # 🚆 TWRailway Patches
 
-給「火車時刻表」App（[com.tsumii.trainschedule](https://play.google.com/store/apps/details?id=com.tsumii.trainschedule)）使用的 Morphe patch。
+給「火車時刻表」App（[com.tsumii.trainschedule](https://play.google.com/store/apps/details?id=com.tsumii.trainschedule)）使用的 [Morphe](https://morphe.software) patch。
 
 ## ❓ About
 
 目前提供的 patch：
 
-- **Hide ads**：讓 App 不再載入與顯示 Google AdMob 廣告（橫幅、插頁、獎勵、開啟應用程式與原生廣告），橫幅廣告的版位也會一併隱藏。
+- **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告）。
+
+已用 **5.3.4**（version code 74）實際套用並驗證；其他版本標示為實驗性支援。
+
+### How it works
+
+火車時刻表是 Flutter App，廣告是 Dart 端透過 [google_mobile_ads](https://pub.dev/packages/google_mobile_ads) 外掛，
+經由 `plugins.flutter.io/google_mobile_ads` method channel 交給原生的 Google Mobile Ads（Next-Gen）SDK 載入。
+原生 SDK 整個被混淆，因此 patch 改為攔截外掛的 `onMethodCall`：
+所有 `load*` 呼叫（`loadBannerAd`、`loadInterstitialAd`、`loadNativeAd`、`loadAppOpenAd` 等）都直接回傳
+`result.success(null)` 而不載入廣告，Dart 端永遠收不到 `onAdLoaded`，廣告也就不會顯示。
+外掛類別是以 method channel 字串比對找到的，不依賴混淆後的類別名稱。
 
 ### How to use these patches
 
@@ -16,88 +27,47 @@ Click the button below, or manually add this repo url to Morphe Manager: https:/
   <img src=".github/assets/add-to-morphe.svg" alt="Add to Morphe" height="48">
 </a>
 
+也可以用 Morphe CLI（XAPK / APKM / APKS 會自動合併）：
+
+```sh
+java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xapk"
+```
+
+> 輸入檔請用絕對路徑，CLI 合併分割 APK 時以 symlink 暫存輸入檔，相對路徑會失敗。
+
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
 
-<!-- Do not modify this section by hand. The patch list is generated when release.yml creates a new release.
-     
-     If you wish for the patches list to be collapsed, then remove the word 'EXPANDED' from the comment tag above.
+<!-- Do not modify this section by hand. The patch list is generated when release.yml creates a new release. -->
 
-     If you wish to manually keep this list updated then remove the PATCHES_START and PATCHES_END 
-     comment blocks entirely. -->
+#### A list of patches will automatically be shown here after the first patches release is created.
 
-#### A list of your patches will automatically be shown here after your first patches release is created.
-
-&nbsp;
-
-## 🚀 Getting development started
-
-To start using this template, follow these steps:
-
-1. [Setup](https://github.com/MorpheApp/morphe-documentation/blob/main/docs/morphe-development/README.md) your development environment including adding a GitHub PAT as described [here](https://github.com/MorpheApp/morphe-patcher/blob/main/docs/2_1_setup.md#-prepare-the-environment).
-2. [Create a new repository using this template](https://github.com/new?template_name=morphe-patches-template&template_owner=MorpheApp). Select create a new repository, and **enable 'Include all branches'** 
-3. Enable "Allow GitHub Actions to create and approve pull requests" in your repo Settings > Actions > General > Workflow permissions
-4. Update the [build.gradle.kts](patches/build.gradle.kts) file (Specifically, the 
-   [group of the project](patches/build.gradle.kts#L1), and the [About](patches/build.gradle.kts#L6-L11))
-5. Update the [README.md](README.md) file to be specific of your repo, and update the links in the [issue templates](.github/ISSUE_TEMPLATE).
-6. Choose a name for your patches project. Keep in mind you must use a name that does not 
-   imply authorship by the Morphe open source project. If unsure, then simply name these
-   patches after yourself ("UserXYZ Morphe patches"). See the [NOTICE](NOTICE) for details. 
-7. (Optional): Add `patches-bundle.png` to the project if you want a custom icon to show in
-   Morphe Manager instead of your GitHub profile avatar.
-8. (Optional): Sign your releases, so Morphe Manager refuses a release that was changed or swapped after you published it:
-   1. Run `./gradlew generateSigningKey`. It creates `morphe-signing.pub` and `morphe-signing.key`.
-   2. Commit `morphe-signing.pub`. Never commit `morphe-signing.key`, it is already ignored by git.
-   3. Add the content of `morphe-signing.key` as the `MORPHE_SIGNING_KEY` secret in your repo
-      Settings > Secrets and variables > Actions, then keep a backup of it somewhere safe and delete the file.
-
-   Every release is signed from then on. If you lose the key or it leaks, create a new one the same way;
-   users then have to confirm the new key in Morphe Manager before they get your next release.
-
-🎉 You are now ready to start creating patches!
-
-## 🧑‍💻 Dev usage
-
-To develop and release your Patches using this template:
-
-- **Make all changes to the `dev` branch.**
-- For local development work build your patches using the gradle task `./gradlew buildAndroid` to generate the mpp file found in `patches/build/libs/patches-*.mpp`. Apply your patches locally using Morphe Desktop tool like any other patch bundle.
-- Always use [Semantic commit](https://kapeli.com/cheat_sheets/Semantic_Commits.docset/Contents/Resources/Documents/index) messages for commits. To keep it simple use only 3 commit message types: 
-  - `feat: Added a new feature`
-  - `fix: Some problem now fixed`
-  - `chore: Random change you do not want in the user facing changelog`
-- Commits of `fix:` and `feat:` will automatically generate new pre-releases and `chore:` will not create a new release.
-- Users can apply your dev branch releases by enabling `pre-release` in Morphe Manager patch sources.
-- When your dev branch is ready, and you want a stable release, merge dev branch to main (do not squash, and only merge).
-- **Always use semantic release (release.yml)**. Do not manually upload or create releases by hand
-  because many files must be updated and release.yml handles everything.
-
-## 🤓 Tips
-- See the [patcher documentation](https://github.com/MorpheApp/morphe-patcher/blob/main/docs/1_patcher_intro.md) for more examples of creating patches and fingerprints.
-- Do not use AI to create new release scripts. The `release.yml` here already handles everything.
-  If you need something custom with your releases then modify the existing `release.yml`
-  and `.releaserc` instead of writing everything new from scratch.
-- Do not manually edit or manually commit any generated files such as: `patches-list.json`,
-  `patches-bundle.json`, `CHANGELOG.md`.  These files will be automatically updated by `release.yml`.
-- Do not force push any semantic release commits as that will break all future releases.
-  If you need to fix a broken release, it's always easiest to create a new release instead of 
-  fixing an existing release.
-
-
-<!-- The patches end tag is intentionally placed here so the first release will clean up 
-     this readme of all developer instructions above. -->
 <!-- PATCHES_END -->
+
+## ✅ Verification
+
+[Verify patches](.github/workflows/verify.yml) workflow 會在推送時（或手動執行）：
+
+1. 建置 patch bundle（`.mpp`）
+2. 下載 Morphe CLI 最新版與測試用 APK（手動執行時的 `apk_url` 輸入、`TEST_APK_URL` repo 變數，或 workflow 內的預設網址）
+3. 套用 patch，並用 [verify_hide_ads.py](.github/scripts/verify_hide_ads.py) 反編譯確認 `onMethodCall` 已注入攔截程式碼
+4. 將打好 patch 的 APK 以 `patched-apk` artifact 上傳
 
 ### 🛠️ Building locally
 
-- Run `./gradlew buildAndroid`
+- Run `./gradlew buildAndroid`（需要可讀取 GitHub Packages 的 GitHub PAT，見 [Morphe 開發環境設定](https://github.com/MorpheApp/morphe-patcher/blob/main/docs/2_1_setup.md#-prepare-the-environment)）
 - The built patches .mpp file is found in `patches/build/libs/patches-*.mpp`
-- Patch the mpp file using [Morphe-Desktop](https://github.com/MorpheApp/morphe-desktop)
-  like any other patch bundle.
+- Patch the mpp file using [Morphe Desktop](https://github.com/MorpheApp/morphe-cli) like any other patch bundle.
+
+### 🧑‍💻 Releasing
+
+- 使用 [Semantic commit](https://kapeli.com/cheat_sheets/Semantic_Commits.docset/Contents/Resources/Documents/index)：`feat:`、`fix:` 會產生新版本，`chore:` 不會。
+- 推送到 `dev` 產生 pre-release，合併到 `main` 產生正式版，一律由 `release.yml` 處理，不要手動建立 release。
+- 不要手動修改 `patches-list.json`、`patches-bundle.json`、`CHANGELOG.md` 等自動產生的檔案。
 
 See the [Morphe documentation](https://github.com/MorpheApp/morphe-documentation) for more information.
 
 ## 📜 License
 
-UserXYZ Patches are licensed under the [GNU General Public License v3.0](LICENSE)
+TWRailway Patches are licensed under the [GNU General Public License v3.0](LICENSE)
