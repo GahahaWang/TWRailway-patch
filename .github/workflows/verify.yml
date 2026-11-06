@@ -60,8 +60,10 @@ jobs:
 
       - name: Patch APK
         run: |
+          ls -la patches/build/libs
+          MPP=$(ls patches/build/libs/*.mpp | head -n 1)
           java -jar morphe-cli.jar patch \
-            -p patches/build/libs/patches-*.mpp \
+            -p "$MPP" \
             --result-file result.json \
             -o patched.apk \
             app.xapk
