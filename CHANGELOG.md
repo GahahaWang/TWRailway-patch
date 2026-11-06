@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.1.0...v1.2.0) (2026-11-06)
+
+### ✨ New Features
+
+* Remove the empty banner space left by Hide ads ([28949ab](https://github.com/GahahaWang/TWRailway-patch/commit/28949ab63fbffff5fca664be4409917d635dabd1))
+
 ## [1.1.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.0.0...v1.1.0) (2026-11-06)
 
 ### ✨ New Features
