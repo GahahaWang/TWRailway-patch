@@ -8,6 +8,7 @@
 
 - **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告），並移除底部預留給橫幅廣告的空白欄位。
 - **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
+- **Fix recent apps title**：最近使用的 App 畫面中，標題顯示「火車時刻表」而不是 `app.titleTra`。
 
 已用 **5.3.4**（version code 74）實際套用並驗證；其他版本標示為實驗性支援。
 
@@ -24,6 +25,12 @@ App 會像處理沒有廣告可填的請求一樣處理，廣告不會顯示，�
 「App好用嗎？」彈窗是否顯示，是 Dart 端用 shared_preferences（`SharedPreferencesAsync.getBool`）
 讀取 `shouldShowReviewKey-*`（App 自己的評分彈窗）與 `rateMyApp_doNotOpenAgain`（rate_my_app 套件）決定的。
 **Hide review prompt** 攔截原生端的 `getBool`，讓這兩個值永遠讀成「不要顯示」。
+
+最近使用的 App 畫面顯示的標題不是 manifest 的 App 名稱，而是 Flutter `MaterialApp.title`
+經由 `SystemChrome.setApplicationSwitcherDescription` 傳給 `Activity.setTaskDescription` 的字串。
+App 在翻譯（GetX）載入前就取 `app.titleTra` 的翻譯，結果把翻譯鍵本身當成標題。
+**Fix recent apps title** 攔截 Flutter embedding 的這個呼叫：標題若是未翻譯的鍵（`word.word…` 形式），
+改用 App 本身的名稱「火車時刻表」。
 
 ### How to use these patches
 

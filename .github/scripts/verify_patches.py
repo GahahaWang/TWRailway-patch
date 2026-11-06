@@ -4,6 +4,8 @@
   injected no-fill failure and early return for every `load*` method channel call.
 - Hide review prompt: the shared_preferences getBool implementations start with the
   injected overrides for the review dialog keys.
+- Fix recent apps title: the Flutter embedding's setApplicationSwitcherDescription starts
+  with the injected check that replaces an untranslated key label with the app's label.
 """
 import sys
 import zipfile
@@ -57,6 +59,35 @@ def check_hide_review_prompt(dex_files):
     return True
 
 
+def find_title_hooks(dex_files):
+    hooks = []
+    for dex in dex_files:
+        for class_def in dex.get_classes():
+            if not class_def.get_name().startswith("Lio/flutter/plugin/platform/"):
+                continue
+            for method in class_def.get_methods():
+                if not method.get_code():
+                    continue
+                outputs = [i.get_output() for i in method.get_code().get_bc().get_instructions()]
+                if not any("Landroid/app/Activity;->setTaskDescription" in o for o in outputs):
+                    continue
+                head = outputs[:20]
+                if any("Ljava/lang/String;->matches" in o for o in head) and any("loadLabel" in o for o in head):
+                    hooks.append(f"{class_def.get_name()}->{method.get_name()}{method.get_descriptor()}")
+    return hooks
+
+
+def check_fix_recent_apps_title(dex_files):
+    hooks = find_title_hooks(dex_files)
+    for hook in hooks:
+        print(f"[OK] recent apps title hook in {hook}")
+    if not hooks:
+        print("[MISSING] recent apps title hook")
+        return False
+    print("Fix recent apps title patch is applied")
+    return True
+
+
 def check_hide_ads(dex_files):
     class_name, instructions = find_handler(dex_files)
     if class_name is None:
@@ -85,7 +116,11 @@ def check_hide_ads(dex_files):
 
 def main():
     dex_files = load_dex_files(sys.argv[1])
-    results = [check_hide_ads(dex_files), check_hide_review_prompt(dex_files)]
+    results = [
+        check_hide_ads(dex_files),
+        check_hide_review_prompt(dex_files),
+        check_fix_recent_apps_title(dex_files),
+    ]
     if not all(results):
         sys.exit("Some patches were NOT applied")
 
