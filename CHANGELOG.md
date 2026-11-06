@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.2.0...v1.3.0) (2026-11-06)
+
+### ✨ New Features
+
+* Add Fix recent apps title patch ([504bc67](https://github.com/GahahaWang/TWRailway-patch/commit/504bc67e86d95dbc85b823a6d405b8ee747c77ef))
+
 ## [1.2.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.1.0...v1.2.0) (2026-11-06)
 
 ### ✨ New Features

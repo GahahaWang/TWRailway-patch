@@ -51,9 +51,9 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.2.0](https://github.com/GahahaWang/TWRailway-patch/releases/tag/v1.2.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
+> **[v1.3.0](https://github.com/GahahaWang/TWRailway-patch/releases/tag/v1.3.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;3 patches total
 <details open>
-<summary>📦 火車時刻表&nbsp;&nbsp;•&nbsp;&nbsp;2 patches</summary>
+<summary>📦 火車時刻表&nbsp;&nbsp;•&nbsp;&nbsp;3 patches</summary>
 <br>
 
 **Package name:** `com.tsumii.trainschedule`
@@ -65,6 +65,7 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
+| [Fix recent apps title](#fix-recent-apps-title) | Shows the app name instead of "app.titleTra" as the app's title in the recent apps screen. |  |
 | [Hide ads](#hide-ads) | Stops the app from loading banner, interstitial, native and app open ads, and removes the empty space reserved for the banner. |  |
 | [Hide review prompt](#hide-review-prompt) | Stops the "App好用嗎？" dialog asking to rate the app from showing. |  |
 
