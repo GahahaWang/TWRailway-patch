@@ -64,9 +64,9 @@ jobs:
           MPP=$(ls patches/build/libs/*.mpp | head -n 1)
           java -jar morphe-cli.jar patch \
             -p "$MPP" \
-            --result-file result.json \
-            -o patched.apk \
-            app.xapk
+            --result-file "$PWD/result.json" \
+            -o "$PWD/patched.apk" \
+            "$PWD/app.xapk"
           cat result.json
 
       - name: Check Hide ads patch
