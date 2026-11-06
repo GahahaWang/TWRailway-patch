@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.0.0...v1.1.0) (2026-11-06)
+
+### ✨ New Features
+
+* Add Hide review prompt patch ([39ca1ac](https://github.com/GahahaWang/TWRailway-patch/commit/39ca1ac8b86d3da87dcb6664677441f3053590d9))
+
 ## 1.0.0 (2026-11-06)
 
 ### ✨ New Features
