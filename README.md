@@ -52,7 +52,7 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 1. 建置 patch bundle（`.mpp`）
 2. 下載 Morphe CLI 最新版與測試用 APK（手動執行時的 `apk_url` 輸入、`TEST_APK_URL` repo 變數，或 workflow 內的預設網址）
 3. 套用 patch，並用 [verify_hide_ads.py](.github/scripts/verify_hide_ads.py) 反編譯確認 `onMethodCall` 已注入攔截程式碼
-4. 將打好 patch 的 APK 以 `patched-apk` artifact 上傳
+4. 將打好 patch 的 APK 直接以 `patched.apk` artifact 上傳（不壓縮成 zip）
 
 ### 🛠️ Building locally
 

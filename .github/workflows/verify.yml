@@ -79,8 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: patched-apk
+          # Upload the APK as is, not wrapped in a zip.
+          archive: false
           if-no-files-found: ignore
-          path: |
-            patched.apk
-            result.json
+          path: patched.apk
