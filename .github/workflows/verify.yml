@@ -71,8 +71,9 @@ jobs:
 
       - name: Check Hide ads patch
         run: |
-          pip install --quiet androguard
-          python -I .github/scripts/verify_hide_ads.py patched.apk
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet androguard
+          "$RUNNER_TEMP/venv/bin/python" -I .github/scripts/verify_hide_ads.py patched.apk
 
       - name: Upload patched APK
         if: always()
