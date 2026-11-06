@@ -7,6 +7,7 @@
 目前提供的 patch：
 
 - **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告）。
+- **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
 
 已用 **5.3.4**（version code 74）實際套用並驗證；其他版本標示為實驗性支援。
 
@@ -18,6 +19,10 @@
 所有 `load*` 呼叫（`loadBannerAd`、`loadInterstitialAd`、`loadNativeAd`、`loadAppOpenAd` 等）都直接回傳
 `result.success(null)` 而不載入廣告，Dart 端永遠收不到 `onAdLoaded`，廣告也就不會顯示。
 外掛類別是以 method channel 字串比對找到的，不依賴混淆後的類別名稱。
+
+「App好用嗎？」彈窗是否顯示，是 Dart 端用 shared_preferences（`SharedPreferencesAsync.getBool`）
+讀取 `shouldShowReviewKey-*`（App 自己的評分彈窗）與 `rateMyApp_doNotOpenAgain`（rate_my_app 套件）決定的。
+**Hide review prompt** 攔截原生端的 `getBool`，讓這兩個值永遠讀成「不要顯示」。
 
 ### How to use these patches
 
@@ -64,7 +69,7 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 
 1. 建置 patch bundle（`.mpp`）
 2. 下載 Morphe CLI 最新版與測試用 APK（手動執行時的 `apk_url` 輸入、`TEST_APK_URL` repo 變數，或 workflow 內的預設網址）
-3. 套用 patch，並用 [verify_hide_ads.py](.github/scripts/verify_hide_ads.py) 反編譯確認 `onMethodCall` 已注入攔截程式碼
+3. 套用 patch，並用 [verify_patches.py](.github/scripts/verify_patches.py) 反編譯確認每個 patch 的程式碼都已注入
 4. 將打好 patch 的 APK 直接以 `patched.apk` artifact 上傳（不壓縮成 zip）
 
 ### 🛠️ Building locally

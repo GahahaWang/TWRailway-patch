@@ -69,11 +69,11 @@ jobs:
             "$PWD/app.xapk"
           cat result.json
 
-      - name: Check Hide ads patch
+      - name: Check patches were applied
         run: |
           python -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/pip" install --quiet androguard
-          "$RUNNER_TEMP/venv/bin/python" -I .github/scripts/verify_hide_ads.py patched.apk
+          "$RUNNER_TEMP/venv/bin/python" -I .github/scripts/verify_patches.py patched.apk
 
       - name: Upload patched APK
         if: always()
