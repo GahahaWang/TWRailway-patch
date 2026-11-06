@@ -38,10 +38,23 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
+> **[v1.0.0](https://github.com/GahahaWang/TWRailway-patch/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;1 patches total
+<details open>
+<summary>📦 火車時刻表&nbsp;&nbsp;•&nbsp;&nbsp;1 patch</summary>
+<br>
 
-<!-- Do not modify this section by hand. The patch list is generated when release.yml creates a new release. -->
+**Package name:** `com.tsumii.trainschedule`
 
-#### A list of patches will automatically be shown here after the first patches release is created.
+**🎯 Supported versions:**
+
+| 5.3.4 |
+| :---: |
+
+| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
+|----------|----------------|-----------|
+| [Hide ads](#hide-ads) | Stops the app from loading banner, interstitial, native and app open ads. |  |
+
+</details>
 
 <!-- PATCHES_END -->
 
