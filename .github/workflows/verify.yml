@@ -15,7 +15,6 @@ on:
   push:
     branches-ignore:
       - main
-      - dev
 
 env:
   DEFAULT_APK_URL: https://drive.usercontent.google.com/download?id=16G97lUdjIQ8HjX1rO9NMuPj30nF4lR37&export=download&confirm=t

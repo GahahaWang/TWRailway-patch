@@ -83,7 +83,7 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 ### 🧑‍💻 Releasing
 
 - 使用 [Semantic commit](https://kapeli.com/cheat_sheets/Semantic_Commits.docset/Contents/Resources/Documents/index)：`feat:`、`fix:` 會產生新版本，`chore:` 不會。
-- 推送到 `dev` 產生 pre-release，合併到 `main` 產生正式版，一律由 `release.yml` 處理，不要手動建立 release。
+- 合併到 `main` 產生正式版，一律由 `release.yml` 處理，不要手動建立 release。
 - 不要手動修改 `patches-list.json`、`patches-bundle.json`、`CHANGELOG.md` 等自動產生的檔案。
 
 See the [Morphe documentation](https://github.com/MorpheApp/morphe-documentation) for more information.
