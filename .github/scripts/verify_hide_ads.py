@@ -7,6 +7,9 @@ import sys
 import zipfile
 
 from androguard.core.dex import DEX
+from loguru import logger
+
+logger.remove()  # androguard logs every parsed DEX section at DEBUG level.
 
 
 def find_handler(apk_path):
