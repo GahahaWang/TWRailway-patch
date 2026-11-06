@@ -15,8 +15,12 @@ object Constants {
         apkFileType = ApkFileType.APK,
         appIconColor = 0x1E88E5,
         targets = listOf(
-            // The patch only touches the public Google Mobile Ads SDK API,
-            // so it is expected to work with any app version.
+            // Verified against 5.3.4 (version code 74).
+            AppTarget(
+                version = "5.3.4",
+            ),
+            // The patch hooks the google_mobile_ads Flutter plugin by its
+            // method channel names, so other versions are expected to work too.
             AppTarget(
                 version = null,
                 isExperimental = true,
