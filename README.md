@@ -6,7 +6,7 @@
 
 目前提供的 patch：
 
-- **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告）。
+- **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告），並移除底部預留給橫幅廣告的空白欄位。
 - **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
 
 已用 **5.3.4**（version code 74）實際套用並驗證；其他版本標示為實驗性支援。
@@ -16,8 +16,9 @@
 火車時刻表是 Flutter App，廣告是 Dart 端透過 [google_mobile_ads](https://pub.dev/packages/google_mobile_ads) 外掛，
 經由 `plugins.flutter.io/google_mobile_ads` method channel 交給原生的 Google Mobile Ads（Next-Gen）SDK 載入。
 原生 SDK 整個被混淆，因此 patch 改為攔截外掛的 `onMethodCall`：
-所有 `load*` 呼叫（`loadBannerAd`、`loadInterstitialAd`、`loadNativeAd`、`loadAppOpenAd` 等）都直接回傳
-`result.success(null)` 而不載入廣告，Dart 端永遠收不到 `onAdLoaded`，廣告也就不會顯示。
+所有 `load*` 呼叫（`loadBannerAd`、`loadInterstitialAd`、`loadNativeAd`、`loadAppOpenAd` 等）都不載入廣告，
+而是送出 `onAdFailedToLoad`（no fill）事件再回傳 `result.success(null)`。
+App 會像處理沒有廣告可填的請求一樣處理，廣告不會顯示，底部預留給橫幅的空間也會收起。
 外掛類別是以 method channel 字串比對找到的，不依賴混淆後的類別名稱。
 
 「App好用嗎？」彈窗是否顯示，是 Dart 端用 shared_preferences（`SharedPreferencesAsync.getBool`）

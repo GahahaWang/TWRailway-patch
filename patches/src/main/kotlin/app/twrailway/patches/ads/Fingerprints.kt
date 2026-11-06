@@ -17,3 +17,16 @@ internal object GoogleMobileAdsPluginOnMethodCallFingerprint : Fingerprint(
     ),
     custom = { method, _ -> method.parameterTypes.size == 2 },
 )
+
+/**
+ * `AdInstanceManager.onAdFailedToLoad(int adId, FlutterAd.FlutterLoadAdError error)`
+ * of the google_mobile_ads Flutter plugin.
+ */
+internal object AdInstanceManagerOnAdFailedToLoadFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("I", "L"),
+    strings = listOf(
+        "onAdFailedToLoad",
+        "loadAdError",
+    ),
+)

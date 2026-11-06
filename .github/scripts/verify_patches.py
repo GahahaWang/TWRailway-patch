@@ -1,7 +1,7 @@
 """Checks that the patches were applied to a patched 火車時刻表 APK.
 
 - Hide ads: the google_mobile_ads Flutter plugin's onMethodCall handler starts with the
-  injected early return for every `load*` method channel call.
+  injected no-fill failure and early return for every `load*` method channel call.
 - Hide review prompt: the shared_preferences getBool implementations start with the
   injected overrides for the review dialog keys.
 """
@@ -63,7 +63,7 @@ def check_hide_ads(dex_files):
         print("[MISSING] google_mobile_ads onMethodCall handler")
         return False
 
-    head = [f"{i.get_name()} {i.get_output()}" for i in instructions[:12]]
+    head = [f"{i.get_name()} {i.get_output()}" for i in instructions[:40]]
     print(f"Handler: {class_name}->onMethodCall")
     print("\n".join("    " + line for line in head))
 
@@ -71,6 +71,7 @@ def check_hide_ads(dex_files):
     checks = {
         'const-string "load"': 'const-string' in text and '"load"' in text,
         "String.startsWith": "Ljava/lang/String;->startsWith" in text,
+        "onAdFailedToLoad (no fill)": '"No fill."' in text,
         "Result.success(null)": "invoke-interface" in text,
         "return-void": "return-void" in text,
     }
