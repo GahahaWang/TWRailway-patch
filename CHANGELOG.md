@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.3.0...v1.4.0) (2026-11-07)
+
+### ✨ New Features
+
+* Add Expand search history patch ([2705cee](https://github.com/GahahaWang/TWRailway-patch/commit/2705ceec3c94a2ba2673d67b3b8a442512b73be2))
+
 ## [1.3.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.2.0...v1.3.0) (2026-11-06)
 
 ### ✨ New Features

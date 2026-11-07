@@ -1,7 +1,41 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "patches": [
+    {
+      "name": "Expand search history",
+      "description": "Shows up to 20 recent searches instead of 3.",
+      "default": true,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.tsumii.trainschedule",
+          "name": "火車時刻表",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#1E88E5",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.3.4",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            },
+            {
+              "version": null,
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
     {
       "name": "Fix recent apps title",
       "description": "Shows the app name instead of \"app.titleTra\" as the app's title in the recent apps screen.",
