@@ -92,6 +92,10 @@ public final class PatchSettings {
         return preferences(context).getBoolean(EXPAND_SEARCH_HISTORY, true);
     }
 
+    static boolean hideReviewPrompt(Context context) {
+        return preferences(context).getBoolean(HIDE_REVIEW_PROMPT, true);
+    }
+
     static boolean hideUpgradeButton(Context context) {
         return preferences(context).getBoolean(HIDE_UPGRADE_BUTTON, true);
     }

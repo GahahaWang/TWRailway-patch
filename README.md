@@ -7,7 +7,7 @@
 目前提供的 patch：
 
 - **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告），並移除底部預留給橫幅廣告的空白欄位。
-- **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
+- **Hide review prompt**：不再跳出「喜歡這個App嗎？」請你評分的彈窗。
 - **Hide upgrade button**：台鐵與高鐵搜尋頁不再顯示「付費移除廣告，免開app 直接查」之類的訂閱按鈕（只隱藏按鈕，不會解鎖付費功能）。
 - **Hide promotions**：不再跳出免費版才有的訂閱推廣彈窗（訂閱優惠、節日特價、「解鎖新功能：桌面小工具」），介面和付費版一樣乾淨（只隱藏推廣，不會解鎖付費功能）。
 - **Fix recent apps title**：最近使用的 App 畫面中，標題顯示「火車時刻表」而不是 `app.titleTra`。
@@ -23,7 +23,7 @@
 | 設定 | 生效時機 |
 | --- | --- |
 | 隱藏廣告 | 立即（已載入的廣告重新啟動後消失） |
-| 隱藏評分彈窗 | 立即 |
+| 隱藏評分彈窗 | 重新啟動 App 後 |
 | 隱藏付費推廣按鈕 | 重新啟動 App 後 |
 | 隱藏付費推廣彈窗 | 重新啟動 App 後 |
 | 修正最近使用的 App 標題 | 立即（下次更新標題時） |
@@ -44,9 +44,13 @@
 App 會像處理沒有廣告可填的請求一樣處理，廣告不會顯示，底部預留給橫幅的空間也會收起。
 外掛類別是以 method channel 字串比對找到的，不依賴混淆後的類別名稱。
 
-「App好用嗎？」彈窗是否顯示，是 Dart 端用 shared_preferences（`SharedPreferencesAsync.getBool`）
-讀取 `shouldShowReviewKey-*`（App 自己的評分彈窗）與 `rateMyApp_doNotOpenAgain`（rate_my_app 套件）決定的。
-**Hide review prompt** 攔截原生端的 `getBool`，讓這兩個值永遠讀成「不要顯示」。
+「喜歡這個App嗎？」評分彈窗（App 自己的 `AppReviewView`）是搜尋後由 Dart 的 `AppController.canShowReview` 決定是否顯示：
+成功搜尋次數是 5 的倍數、`shouldShowReviewKey-<版本>` 為 true，且已過了「下次」提醒時間（`remindReviewKey`）。
+這些值存在 get_storage（純 Dart 的檔案），原生端攔截不到，所以 **Hide review prompt** 直接改 arm64 `libapp.so`：
+把 `canShowReview` 第一個判斷（`cbnz x2`，次數不是 5 的倍數就回傳 false）換成無條件的 `b`，讓它永遠回傳 false。
+另外 rate_my_app 套件的彈窗（以及舊版 App 的評分彈窗）是用 shared_preferences（`SharedPreferencesAsync.getBool`）
+讀取 `rateMyApp_doNotOpenAgain`、`shouldShowReviewKey-*`，patch 也攔截原生端的 `getBool`，讓這兩個值永遠讀成「不要顯示」。
+在修補設定關閉時，和搜尋歷史筆數一樣改載入一份把判斷還原的 `libapp.so` 副本，所以要重新啟動才會生效。
 
 最近使用的 App 畫面顯示的標題不是 manifest 的 App 名稱，而是 Flutter `MaterialApp.title`
 經由 `SystemChrome.setApplicationSwitcherDescription` 傳給 `Activity.setTaskDescription` 的字串。
