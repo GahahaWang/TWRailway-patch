@@ -1,0 +1,91 @@
+name: Inspect widget
+
+# Temporary: dumps manifest, native and Dart code related to the live route widget,
+# so they can be read from the job log.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/project-thread-vypmb2
+
+env:
+  APK_URL: https://drive.usercontent.google.com/download?id=16G97lUdjIQ8HjX1rO9NMuPj30nF4lR37&export=download&confirm=t
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and unpack
+        run: |
+          curl -fsSL -o app.xapk "$APK_URL"
+          mkdir x && cd x && unzip -q ../app.xapk
+          ls -la
+          mkdir base arm && unzip -q com.tsumii.trainschedule.apk -d base
+          for f in config.arm64_v8a.apk split_config.arm64_v8a.apk; do [ -f "$f" ] && unzip -q "$f" -d arm || true; done
+
+      - name: Manifest and native classes
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet androguard
+          "$RUNNER_TEMP/venv/bin/python" - <<'PY'
+          from androguard.misc import AnalyzeAPK
+          a, d, dx = AnalyzeAPK("x/com.tsumii.trainschedule.apk")
+          print(a.get_android_manifest_axml().get_xml().decode()[:40000])
+          print("== classes with widget ==")
+          for c in dx.get_classes():
+              n = c.name
+              if any(k in n.lower() for k in ("widget", "appwidget", "glance", "remoteview", "tsumii")) and not n.startswith("Landroidx/") and not n.startswith("Landroid/"):
+                  print(n)
+          print("== strings ==")
+          for s in dx.get_strings():
+              v = s.get_value()
+              if any(k in v.lower() for k in ("widget", "home_widget", "enabled", "remote_config", "feature")):
+                  print(repr(v[:200]))
+          PY
+          find x/base/res -iname '*widget*' | head -40
+
+      - name: Dart snapshot strings
+        run: |
+          SO=$(find x/arm -name libapp.so | head -1)
+          strings -n 3 "$SO" > dart.txt
+          echo "== keyword matches =="
+          grep -iE 'widget|realtime|live|enable|feature|flag|remote' dart.txt | sort -u | head -800
+          echo "== CJK strings =="
+          python3 - "$SO" <<'PY'
+          import re,sys
+          d=open(sys.argv[1],'rb').read()
+          out=set()
+          for m in re.finditer(rb'[\x20-\x7e\xc0-\xff\x80-\xbf]{3,}',d):
+              try: t=m.group().decode('utf-8')
+              except: continue
+              if re.search(r'[一-鿿]',t): out.add(t)
+          for t in sorted(out):
+              if re.search(r'小工具|即時|路線|桌面|開啟|啟用|關閉|實驗|測試',t): print(t[:300])
+          PY
+
+      - name: Blutter
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q python3-pyelftools python3-requests git cmake ninja-build build-essential pkg-config libicu-dev libcapstone-dev
+          git clone --depth 1 https://github.com/worawit/blutter.git
+          LIBDIR=$(dirname "$(find x/arm -name libapp.so | head -1)")
+          python3 blutter/blutter.py "$LIBDIR" bout > blutter.log 2>&1 || { tail -80 blutter.log; exit 1; }
+          tail -5 blutter.log
+
+      - name: Blutter matches
+        run: |
+          cd bout
+          echo "== files =="
+          find asm -type f | grep -iE 'widget|live|route|config|setting|feature' | grep -v '/flutter/' | head -300
+          echo "== home_widget refs =="
+          grep -rln -iE 'home_widget|HomeWidget|updateWidget|saveWidgetData|widget_enable|enableWidget|widgetEnable' asm | grep -v '/flutter/' | head -80
+          grep -rn -iE '"[a-z_]*widget[a-z_]*"' asm | grep -v '/flutter/' | head -150
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: inspect-widget
+          path: |
+            dart.txt
+            bout/asm
