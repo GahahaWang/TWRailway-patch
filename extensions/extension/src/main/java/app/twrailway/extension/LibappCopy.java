@@ -14,32 +14,45 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * The number of searches shown in the search history is compiled into the app's Dart code
- * (libapp.so), so it cannot be read from a setting. The "Expand search history" patch makes it
- * 20 in libapp.so. For any other value, a copy of libapp.so with that number is written to the
- * app's files directory, and the Flutter engine is told to load the copy instead
- * ({@code --aot-shared-library-name}, which only accepts libraries in the app's internal
- * storage). A setting takes effect the next time the app starts.
+ * Some patches change the app's compiled Dart code (libapp.so), which cannot read a setting.
+ * The installed libapp.so has every such patch applied. When a setting differs from that, a copy
+ * of libapp.so with the setting is written to the app's files directory, and the Flutter engine
+ * is told to load the copy instead ({@code --aot-shared-library-name}, which only accepts
+ * libraries in the app's internal storage). A setting takes effect the next time the app starts.
+ *
+ * <ul>
+ *   <li>Expand search history: the number of searches shown in the search history.</li>
+ *   <li>Hide upgrade button: whether the subscribe button of the search pages is shown.</li>
+ * </ul>
  */
 @SuppressWarnings("unused")
-public final class SearchHistoryLimit {
+public final class LibappCopy {
     private static final String AOT_LIBRARY_FLAG = "--aot-shared-library-name=";
     private static final String DIRECTORY = "twrailway_patches";
     private static final String LIBRARY = "libapp.so";
 
-    // arm64: x0 = (isPremium ? 0x22 : 0) + 6, the Smi of 20 or 3.
+    private static final int NOP = 0xd503201f;
+
+    // Search history limit, arm64: x0 = (isPremium ? 0x22 : 0) + 6, the Smi of 20 or 3.
     // csetm x0, eq | mov x0, #0x22 (patched), then mov x16, #0x22; and x0, x0, x16; add x0, x0, #6.
     private static final int CSETM_X0_EQ = 0xda9f13e0;
     private static final int MOV_X0_0x22 = 0xd2800440;
     private static final int[] LIMIT_TAIL = {0xd2800450, 0x8a100000, 0x91001800};
     private static final int MOVZ_X0 = 0xd2800000;
-    private static final int NOP = 0xd503201f;
 
-    private SearchHistoryLimit() {
+    // Upgrade button: `if (iap.isPurchased.value) return const SizedBox();` where the patch
+    // replaces the `tbnz` (branch to the button when false) with a nop. See HideUpgradeButtonPatch.
+    private static final int[] UPGRADE_BUTTON_HEAD = {0xb8417001, 0x8b1c8021, 0xb841b020, 0x8b1c8000, 0xaa0003e1};
+    private static final int TBNZ_W0_4_BUTTON = 0x372000a0;
+    private static final int[] UPGRADE_BUTTON_TAIL = {0xf97ba360, 0xaa1d03ef, 0xa8c179fd, 0xd65f03c0};
+    private static final int UPGRADE_BUTTON_LENGTH = 4 * (UPGRADE_BUTTON_HEAD.length + 2 + UPGRADE_BUTTON_TAIL.length);
+
+    private LibappCopy() {
     }
 
     /**
@@ -52,15 +65,29 @@ public final class SearchHistoryLimit {
             Context appContext = context.getApplicationContext();
             File directory = new File(appContext.getFilesDir(), DIRECTORY);
 
-            boolean expand = PatchSettings.expandSearchHistory(appContext);
-            int limit = PatchSettings.searchHistoryLimit(appContext);
-            if (expand && limit == PatchSettings.SEARCH_HISTORY_MAX) {
-                // The installed libapp.so already shows 20 searches.
+            Set<String> applied = PatchSettings.appliedPatches();
+
+            // -1: leave as installed, 0: restore the app's own behavior, else the number to show.
+            int searchHistoryLimit = -1;
+            if (applied.contains(PatchSettings.EXPAND_SEARCH_HISTORY)) {
+                boolean expand = PatchSettings.expandSearchHistory(appContext);
+                int limit = PatchSettings.searchHistoryLimit(appContext);
+                if (!expand) searchHistoryLimit = 0;
+                else if (limit != PatchSettings.SEARCH_HISTORY_MAX) searchHistoryLimit = limit;
+            }
+            boolean showUpgradeButton = applied.contains(PatchSettings.HIDE_UPGRADE_BUTTON)
+                    && !PatchSettings.hideUpgradeButton(appContext);
+
+            if (searchHistoryLimit < 0 && !showUpgradeButton) {
+                // The installed libapp.so already matches the settings.
                 deleteCopies(directory, null);
                 return args;
             }
 
-            String name = "libapp-" + (expand ? String.valueOf(limit) : "original") + ".so";
+            String name = "libapp"
+                    + (searchHistoryLimit < 0 ? "" : searchHistoryLimit == 0 ? "-history-original" : "-history-" + searchHistoryLimit)
+                    + (showUpgradeButton ? "-upgrade-button" : "")
+                    + ".so";
             File copy = new File(directory, name);
             File stamp = new File(directory, name + ".source");
             String source = sourceIdentity(appContext);
@@ -69,8 +96,13 @@ public final class SearchHistoryLimit {
             if (!copy.isFile() || !source.equals(readText(stamp))) {
                 deleteCopies(directory, null);
                 byte[] library = readLibrary(appContext);
-                if (library == null || !setLimit(library, expand ? limit : -1)) {
+                if (library == null) return args;
+                if (searchHistoryLimit >= 0 && !setSearchHistoryLimit(library, searchHistoryLimit)) {
                     Log.w(PatchSettings.TAG, "Could not find the search history limit in libapp.so");
+                    return args;
+                }
+                if (showUpgradeButton && !restoreUpgradeButton(library)) {
+                    Log.w(PatchSettings.TAG, "Could not find the upgrade button in libapp.so");
                     return args;
                 }
                 if (!directory.isDirectory() && !directory.mkdirs()) return args;
@@ -84,22 +116,22 @@ public final class SearchHistoryLimit {
             }
             deleteCopies(directory, name);
 
-            Log.i(PatchSettings.TAG, "Loading " + copy + " for the search history limit");
+            Log.i(PatchSettings.TAG, "Loading " + copy + " for the patch settings");
             String[] result = new String[(args == null ? 0 : args.length) + 1];
             result[0] = AOT_LIBRARY_FLAG + copy.getAbsolutePath();
             if (args != null) System.arraycopy(args, 0, result, 1, args.length);
             return result;
         } catch (Throwable t) {
-            Log.e(PatchSettings.TAG, "Could not set the search history limit", t);
+            Log.e(PatchSettings.TAG, "Could not apply the patch settings to libapp.so", t);
             return args;
         }
     }
 
     /**
-     * Sets the limit in the arm64 libapp.so in {@code library}, or restores the original
-     * instruction when {@code limit} is negative.
+     * Sets the search history limit in the arm64 libapp.so in {@code library}, or restores the
+     * original instruction when {@code limit} is 0.
      */
-    private static boolean setLimit(byte[] library, int limit) {
+    private static boolean setSearchHistoryLimit(byte[] library, int limit) {
         int found = -1;
         for (int offset = 0; offset + 16 <= library.length; offset += 4) {
             int first = readInt(library, offset);
@@ -113,7 +145,7 @@ public final class SearchHistoryLimit {
         }
         if (found == -1) return false;
 
-        if (limit < 0) {
+        if (limit <= 0) {
             writeInt(library, found, CSETM_X0_EQ);
         } else {
             // mov x0, #Smi(limit); nop; nop; nop
@@ -121,6 +153,29 @@ public final class SearchHistoryLimit {
             writeInt(library, found + 4, NOP);
             writeInt(library, found + 8, NOP);
             writeInt(library, found + 12, NOP);
+        }
+        return true;
+    }
+
+    /** Puts back the branch to the upgrade button of the search pages. */
+    private static boolean restoreUpgradeButton(byte[] library) {
+        List<Integer> found = new ArrayList<>();
+        for (int offset = 0; offset + UPGRADE_BUTTON_LENGTH <= library.length; offset += 4) {
+            if (matches(library, offset, UPGRADE_BUTTON_HEAD)
+                    && (readInt(library, offset + 20) >>> 26) == 0x25 // bl
+                    && readInt(library, offset + 24) == NOP
+                    && matches(library, offset + 28, UPGRADE_BUTTON_TAIL)) {
+                found.add(offset);
+            }
+        }
+        if (found.isEmpty() || found.size() > 2) return false;
+        for (int offset : found) writeInt(library, offset + 24, TBNZ_W0_4_BUTTON);
+        return true;
+    }
+
+    private static boolean matches(byte[] library, int offset, int[] words) {
+        for (int i = 0; i < words.length; i++) {
+            if (readInt(library, offset + 4 * i) != words[i]) return false;
         }
         return true;
     }

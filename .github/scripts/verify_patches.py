@@ -9,6 +9,8 @@
 - Expand search history: the arm64 libapp.so computes the visible search history limit as
   20 whatever the subscription state (`mov x0, #0x22` in place of `csetm x0, eq`), and the
   Flutter loader passes the engine a copy of libapp.so with the number set in the patch settings.
+- Hide upgrade button: the arm64 libapp.so never branches to the subscribe button of the
+  台鐵 and 高鐵 search pages (`nop` in place of `tbnz w0, #4`).
 - Patch settings: the extension is merged, the Flutter loader and DartMessenger call it, every
   hook above first checks its setting, and the drawer's 廣告設定 label is renamed to 修補設定.
 """
@@ -117,6 +119,37 @@ def check_expand_search_history(apk_path):
     return True
 
 
+# ldur w1, [x0, #0x17]; add x1, x1, x28, lsl #32; ldur w0, [x1, #0x1b]; add x0, x0, x28, lsl #32;
+# mov x1, x0; bl <value>; tbnz w0, #4, +0x14 / nop; ldr x0, [x27, #0x7740]; mov sp, fp; ldp fp, lr; ret.
+UPGRADE_BUTTON_HEAD = bytes.fromhex("017041b821801c8b20b041b800801c8be10300aa")
+UPGRADE_BUTTON_TAIL = bytes.fromhex("60a37bf9ef031daafd79c1a8c0035fd6")
+TBNZ_BUTTON = bytes.fromhex("a0002037")
+NOP = bytes.fromhex("1f2003d5")
+
+
+def check_hide_upgrade_button(apk_path):
+    with zipfile.ZipFile(apk_path) as apk:
+        names = [n for n in apk.namelist() if n.startswith("lib/arm64-v8a/") and n.endswith("/libapp.so")]
+        if not names:
+            print("[MISSING] lib/arm64-v8a/libapp.so")
+            return False
+        data = apk.read(names[0])
+    patched = original = 0
+    start = data.find(UPGRADE_BUTTON_HEAD)
+    while start != -1:
+        if start % 4 == 0 and data[start + 28:start + 44] == UPGRADE_BUTTON_TAIL:
+            branch = data[start + 24:start + 28]
+            patched += branch == NOP
+            original += branch == TBNZ_BUTTON
+        start = data.find(UPGRADE_BUTTON_HEAD, start + 1)
+    print(f"{names[0]}: hidden upgrade button x{patched}, original x{original}")
+    if patched == 0 or original != 0:
+        print("[MISSING] upgrade button patch")
+        return False
+    print("Hide upgrade button patch is applied")
+    return True
+
+
 def check_hide_ads(dex_files):
     class_name, instructions = find_handler(dex_files)
     if class_name is None:
@@ -165,14 +198,14 @@ def find_methods_calling(dex_files, call):
 def check_patch_settings(apk_path, dex_files):
     ok = True
     classes = {c.get_name() for dex in dex_files for c in dex.get_classes()}
-    for name in ("PatchSettings", "PatchSettingsEntry", "PatchSettingsDialog", "SearchHistoryLimit"):
+    for name in ("PatchSettings", "PatchSettingsEntry", "PatchSettingsDialog", "LibappCopy"):
         present = f"{EXTENSION}{name};" in classes
         print(f"[{'OK' if present else 'MISSING'}] extension class {name}")
         ok &= present
 
     hooks = {
         "Flutter loader -> PatchSettings.init": f"{EXTENSION}PatchSettings;->init(Landroid/content/Context;)V",
-        "Flutter loader -> SearchHistoryLimit.flutterShellArgs": f"{EXTENSION}SearchHistoryLimit;->flutterShellArgs",
+        "Flutter loader -> LibappCopy.flutterShellArgs": f"{EXTENSION}LibappCopy;->flutterShellArgs",
         "DartMessenger -> PatchSettingsEntry.onMessageFromDart": f"{EXTENSION}PatchSettingsEntry;->onMessageFromDart",
     }
     for label, call in hooks.items():
@@ -201,6 +234,7 @@ def main():
         check_hide_review_prompt(dex_files),
         check_fix_recent_apps_title(dex_files),
         check_expand_search_history(sys.argv[1]),
+        check_hide_upgrade_button(sys.argv[1]),
         check_patch_settings(sys.argv[1], dex_files),
     ]
     if not all(results):
