@@ -24,6 +24,7 @@ public final class PatchSettings {
     public static final String EXPAND_SEARCH_HISTORY = "expand_search_history";
     public static final String HIDE_UPGRADE_BUTTON = "hide_upgrade_button";
     public static final String HIDE_PROMOTIONS = "hide_promotions";
+    public static final String FIX_SEARCH_HISTORY_COUNT = "fix_search_history_count";
 
     static final String SEARCH_HISTORY_LIMIT = "search_history_limit";
     /** The search history keeps at most 20 searches, so more cannot be shown. */
@@ -93,6 +94,10 @@ public final class PatchSettings {
 
     static boolean hideUpgradeButton(Context context) {
         return preferences(context).getBoolean(HIDE_UPGRADE_BUTTON, true);
+    }
+
+    static boolean fixSearchHistoryCount(Context context) {
+        return preferences(context).getBoolean(FIX_SEARCH_HISTORY_COUNT, true);
     }
 
     static int searchHistoryLimit(Context context) {

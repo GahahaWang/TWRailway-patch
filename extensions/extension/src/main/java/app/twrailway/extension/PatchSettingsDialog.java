@@ -118,6 +118,8 @@ final class PatchSettingsDialog {
             switchRow(PatchSettings.EXPAND_SEARCH_HISTORY, Strings.EXPAND_SEARCH_HISTORY,
                     Strings.EXPAND_SEARCH_HISTORY_SUMMARY, limitRow);
             list.addView(limitRow);
+            switchRow(PatchSettings.FIX_SEARCH_HISTORY_COUNT, Strings.FIX_SEARCH_HISTORY_COUNT,
+                    Strings.FIX_SEARCH_HISTORY_COUNT_SUMMARY, null);
 
             list.addView(footer());
             return root;

@@ -11,11 +11,14 @@
   Flutter loader passes the engine a copy of libapp.so with the number set in the patch settings.
 - Hide upgrade button: the arm64 libapp.so never branches to the subscribe button of the
   台鐵 and 高鐵 search pages (`nop` in place of `tbnz w0, #4`).
+- Fix search history count: the arm64 libapp.so clamps the count next to 搜尋歷史 to 20, the search
+  page passes 20 as its limit, and the badge text no longer loads "search.upgradeBadge".
 - Hide promotions: the firebase_remote_config plugin calls the extension on the parameters
   it sends to Dart, just before every return, so the promotion popups stay turned off.
 - Patch settings: the extension is merged, the Flutter loader and DartMessenger call it, every
   hook above first checks its setting, and the drawer's 廣告設定 label is renamed to 修補設定.
 """
+import struct
 import sys
 import zipfile
 
@@ -152,6 +155,61 @@ def check_hide_upgrade_button(apk_path):
     return True
 
 
+def words(*values):
+    return b"".join(struct.pack("<I", v) for v in values)
+
+
+# HistoryUpgradeBadge.build: clamp of the count (cmp/mov x0, #limit) and, 0x1ac later, the text
+# loading ") " / ")" and "search.upgradeBadge" / "". _buildSearchHistorySection: mov x0, #limit.
+COUNT_CLAMP = (words(0xf840b020, 0xb6f80060, 0xd2800000, 0x14000004), 0x5400004d, 0xf81f83a0)
+COUNT_LIMIT = (words(0xaa0003e3, 0xf85c83a0, 0xf81e83a3, 0xf800b060), 0xf8013060)
+COUNT_TEXT_ORIGINAL = words(0x91407370, 0xf9466e10, 0xb801f050, 0x91407361, 0xf9467021)
+COUNT_TEXT_FROM_CLAMP = 0x1AC
+# ldr ")" (pp+0x10b8) in place of ") ", and the key "" (pp+0x788) in place of "search.upgradeBadge".
+COUNT_TEXT_PATCHED = words(0x91400770, 0xf9405e10, 0xb801f050, 0x91400361, 0xf943c421)
+
+
+def find_aligned(data, needle):
+    start = data.find(needle)
+    while start != -1:
+        if start % 4 == 0:
+            yield start
+        start = data.find(needle, start + 1)
+
+
+def check_fix_search_history_count(apk_path):
+    with zipfile.ZipFile(apk_path) as apk:
+        names = [n for n in apk.namelist() if n.startswith("lib/arm64-v8a/") and n.endswith("/libapp.so")]
+        if not names:
+            print("[MISSING] lib/arm64-v8a/libapp.so")
+            return False
+        data = apk.read(names[0])
+
+    def word(offset):
+        return struct.unpack_from("<I", data, offset)[0]
+
+    clamps = [o for o in find_aligned(data, COUNT_CLAMP[0])
+              if word(o + 20) == COUNT_CLAMP[1] and word(o + 28) == COUNT_CLAMP[2]]
+    limits = [o for o in find_aligned(data, COUNT_LIMIT[0]) if word(o + 20) == COUNT_LIMIT[1]]
+    if len(clamps) != 1 or len(limits) != 1:
+        print(f"[MISSING] search history count code (clamp x{len(clamps)}, limit x{len(limits)})")
+        return False
+    clamp, limit = clamps[0], limits[0]
+    text = data[clamp + COUNT_TEXT_FROM_CLAMP:clamp + COUNT_TEXT_FROM_CLAMP + 20]
+    checks = {
+        "count clamp cmp x0, #20": word(clamp + 16) == 0xf100501f,
+        "count clamp mov x0, #20": word(clamp + 24) == 0xd2800280,
+        "search page limit mov x0, #20": word(limit + 16) == 0xd2800280,
+        "badge text without upgradeBadge": text == COUNT_TEXT_PATCHED,
+    }
+    for label, ok in checks.items():
+        print(f"[{'OK' if ok else 'MISSING'}] {label}")
+    if not all(checks.values()):
+        return False
+    print("Fix search history count patch is applied")
+    return True
+
+
 def check_hide_ads(dex_files):
     class_name, instructions = find_handler(dex_files)
     if class_name is None:
@@ -261,6 +319,7 @@ def main():
         check_fix_recent_apps_title(dex_files),
         check_expand_search_history(sys.argv[1]),
         check_hide_upgrade_button(sys.argv[1]),
+        check_fix_search_history_count(sys.argv[1]),
         check_hide_promotions(dex_files),
         check_patch_settings(sys.argv[1], dex_files),
     ]
