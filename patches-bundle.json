@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-07T07:54:00",
-  "description": "## [1.4.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.3.0...v1.4.0) (2026-11-07)\n\n### ✨ New Features\n\n* Add Expand search history patch ([2705cee](https://github.com/GahahaWang/TWRailway-patch/commit/2705ceec3c94a2ba2673d67b3b8a442512b73be2))",
-  "download_url": "https://github.com/GahahaWang/TWRailway-patch/releases/download/v1.4.0/patches-1.4.0.mpp",
+  "created_at": "2026-11-07T09:24:56",
+  "description": "## [1.5.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.4.0...v1.5.0) (2026-11-07)\n\n### ✨ New Features\n\n* Add Patch settings page to adjust patches at runtime ([6c881a1](https://github.com/GahahaWang/TWRailway-patch/commit/6c881a14641de630ca303f1c04529e3b1f7193a6))",
+  "download_url": "https://github.com/GahahaWang/TWRailway-patch/releases/download/v1.5.0/patches-1.5.0.mpp",
   "signature_download_url": "",
-  "version": "1.4.0"
+  "version": "1.5.0"
 }

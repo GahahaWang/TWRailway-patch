@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.4.0...v1.5.0) (2026-11-07)
+
+### ✨ New Features
+
+* Add Patch settings page to adjust patches at runtime ([6c881a1](https://github.com/GahahaWang/TWRailway-patch/commit/6c881a14641de630ca303f1c04529e3b1f7193a6))
+
 ## [1.4.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.3.0...v1.4.0) (2026-11-07)
 
 ### ✨ New Features
