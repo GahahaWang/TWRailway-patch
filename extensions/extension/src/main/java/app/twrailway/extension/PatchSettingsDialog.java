@@ -106,6 +106,8 @@ final class PatchSettingsDialog {
                     Strings.HIDE_REVIEW_PROMPT_SUMMARY, null);
             switchRow(PatchSettings.HIDE_UPGRADE_BUTTON, Strings.HIDE_UPGRADE_BUTTON,
                     Strings.HIDE_UPGRADE_BUTTON_SUMMARY, null);
+            switchRow(PatchSettings.HIDE_PROMOTIONS, Strings.HIDE_PROMOTIONS,
+                    Strings.HIDE_PROMOTIONS_SUMMARY, null);
 
             section(Strings.SECTION_DISPLAY);
             switchRow(PatchSettings.FIX_RECENT_APPS_TITLE, Strings.FIX_RECENT_APPS_TITLE,
