@@ -12,6 +12,7 @@
 - **Hide promotions**：不再跳出免費版才有的訂閱推廣彈窗（訂閱優惠、節日特價、「解鎖新功能：桌面小工具」），介面和付費版一樣乾淨（只隱藏推廣，不會解鎖付費功能）。
 - **Fix recent apps title**：最近使用的 App 畫面中，標題顯示「火車時刻表」而不是 `app.titleTra`。
 - **Expand search history**：搜尋頁的「最近搜尋」最多顯示 20 筆，而不是預設的 3 筆（筆數可在修補設定調整）。
+- **Fix search history count**：「搜尋歷史」旁的計數顯示實際的顯示筆數，例如 `(5/20)`，而不是 `(3/3) 升級`，並移除「升級」字樣。
 - **Patch settings**：新增「修補設定」頁面，在 App 執行中開關上面每個 patch、調整搜尋歷史顯示筆數。
 
 ### 修補設定
@@ -27,6 +28,7 @@
 | 隱藏付費推廣彈窗 | 重新啟動 App 後 |
 | 修正最近使用的 App 標題 | 立即（下次更新標題時） |
 | 展開搜尋歷史／顯示筆數（1–20） | 重新啟動 App 後（頁面下方有「重新啟動 App」按鈕） |
+| 修正搜尋歷史計數 | 重新啟動 App 後 |
 
 修補時沒有勾選的 patch 會在頁面上標示為未套用。
 
@@ -62,6 +64,14 @@ patch 以指令的位元組序列比對，找不到或不只一處時會直接�
 extension 會在 App 的內部儲存空間寫一份改好筆數的 `libapp.so` 副本，App 啟動時用
 Flutter 的 `--aot-shared-library-name` 參數優先載入副本（Flutter 只接受內部儲存空間的路徑），
 所以要重新啟動才會生效。App 更新或重新修補後副本會自動重建。
+
+免費版在「搜尋歷史」旁有一個 `(3/3) 升級` 徽章（`HistoryUpgradeBadge`），點了會開訂閱頁。
+搜尋頁傳給它的上限寫死為 3，徽章裡也把計數夾在 3 以內，文字是 `"($count/$limit) ${"search.upgradeBadge".tr}"`。
+**Fix search history count** 把 arm64 `libapp.so` 中這兩個 3 改成 20，讓計數和展開後的筆數一致；
+再把 `") "` 換成物件池中已有的 `")"`，並把翻譯鍵 `search.upgradeBadge` 換成空字串
+（GetX 找不到翻譯時原樣回傳鍵，所以結果是空字串），「升級」就不會出現，徽章變成 `(5/20)`。
+這個 patch 依賴 **Expand search history**；修補設定中可以關閉，計數也會跟著「顯示筆數」設定，
+同樣透過 `libapp.so` 副本實作，所以要重新啟動才會生效。
 
 搜尋頁上的訂閱按鈕（文字由 Firebase Remote Config 的 `cta_subscribe_text` 下發）
 是 Dart 的 `_buildUpgradeButton`：`isPurchased` 為 true 時回傳空的 `SizedBox`，否則建立按鈕。

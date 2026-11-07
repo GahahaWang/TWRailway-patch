@@ -23,6 +23,8 @@ final class Strings {
     static final String EXPAND_SEARCH_HISTORY_SUMMARY = "搜尋頁的「最近搜尋」顯示下方設定的筆數。關閉時恢復 App 原本的行為（3 筆）。重新啟動 App 後生效。";
     static final String SEARCH_HISTORY_LIMIT = "顯示筆數：%d 筆";
     static final String SEARCH_HISTORY_LIMIT_SUMMARY = "App 最多保存 20 筆搜尋歷史。";
+    static final String FIX_SEARCH_HISTORY_COUNT = "修正搜尋歷史計數";
+    static final String FIX_SEARCH_HISTORY_COUNT_SUMMARY = "「搜尋歷史」旁的計數顯示實際的顯示筆數（例如 (5/20)），並移除「升級」字樣。關閉時恢復 App 原本的「(3/3) 升級」。重新啟動 App 後生效。";
 
     static final String NOT_APPLIED = "修補時未套用這個 patch。";
     static final String RESTART_NOTE = "標示「重新啟動 App 後生效」的設定，需要重新啟動 App 才會套用。";

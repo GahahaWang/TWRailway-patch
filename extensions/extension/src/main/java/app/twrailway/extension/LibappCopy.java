@@ -28,6 +28,8 @@ import java.util.zip.ZipFile;
  * <ul>
  *   <li>Expand search history: the number of searches shown in the search history.</li>
  *   <li>Hide upgrade button: whether the subscribe button of the search pages is shown.</li>
+ *   <li>Fix search history count: the limit shown in the count next to 搜尋歷史, and its
+ *   "升級" text.</li>
  * </ul>
  */
 @SuppressWarnings("unused")
@@ -51,6 +53,21 @@ public final class LibappCopy {
     private static final int TBNZ_W0_4_BUTTON = 0x372000a0;
     private static final int[] UPGRADE_BUTTON_TAIL = {0xf97ba360, 0xaa1d03ef, 0xa8c179fd, 0xd65f03c0};
     private static final int UPGRADE_BUTTON_LENGTH = 4 * (UPGRADE_BUTTON_HEAD.length + 2 + UPGRADE_BUTTON_TAIL.length);
+
+    // Search history count, see FixSearchHistoryCountPatch: the clamp of the count in
+    // HistoryUpgradeBadge.build, the limit passed by the search page, and the badge text.
+    private static final int[] COUNT_CLAMP_HEAD = {0xf840b020, 0xb6f80060, 0xd2800000, 0x14000004};
+    private static final int COUNT_CLAMP_BRANCH = 0x5400004d;
+    private static final int COUNT_CLAMP_TAIL = 0xf81f83a0;
+    private static final int[] COUNT_LIMIT_HEAD = {0xaa0003e3, 0xf85c83a0, 0xf81e83a3, 0xf800b060};
+    private static final int COUNT_LIMIT_TAIL = 0xf8013060;
+    private static final int[] COUNT_TEXT_ORIGINAL = {0x91407370, 0xf9466e10, 0xb801f050, 0x91407361, 0xf9467021};
+    /** The badge text from the start of the clamp, in the same function. */
+    private static final int COUNT_TEXT_FROM_CLAMP = 0x1ac;
+    private static final int ORIGINAL_COUNT_LIMIT = 3;
+    private static final int CMP_X0 = 0xf100001f;
+    private static final int CMP_X0_MASK = 0xffc003ff;
+    private static final int MOVZ_X0_MASK = 0xffe0001f;
 
     private LibappCopy() {
     }
@@ -78,7 +95,20 @@ public final class LibappCopy {
             boolean showUpgradeButton = applied.contains(PatchSettings.HIDE_UPGRADE_BUTTON)
                     && !PatchSettings.hideUpgradeButton(appContext);
 
-            if (searchHistoryLimit < 0 && !showUpgradeButton) {
+            // -1: leave as installed, 0: restore the app's own badge, else the limit to show.
+            // The installed libapp.so shows the maximum, the limit of the expanded history.
+            int countLimit = -1;
+            if (applied.contains(PatchSettings.FIX_SEARCH_HISTORY_COUNT)) {
+                if (!PatchSettings.fixSearchHistoryCount(appContext)) {
+                    countLimit = 0;
+                } else {
+                    int shown = searchHistoryLimit < 0 ? PatchSettings.SEARCH_HISTORY_MAX
+                            : searchHistoryLimit == 0 ? ORIGINAL_COUNT_LIMIT : searchHistoryLimit;
+                    if (shown != PatchSettings.SEARCH_HISTORY_MAX) countLimit = shown;
+                }
+            }
+
+            if (searchHistoryLimit < 0 && !showUpgradeButton && countLimit < 0) {
                 // The installed libapp.so already matches the settings.
                 deleteCopies(directory, null);
                 return args;
@@ -87,6 +117,7 @@ public final class LibappCopy {
             String name = "libapp"
                     + (searchHistoryLimit < 0 ? "" : searchHistoryLimit == 0 ? "-history-original" : "-history-" + searchHistoryLimit)
                     + (showUpgradeButton ? "-upgrade-button" : "")
+                    + (countLimit < 0 ? "" : countLimit == 0 ? "-count-original" : "-count-" + countLimit)
                     + ".so";
             File copy = new File(directory, name);
             File stamp = new File(directory, name + ".source");
@@ -103,6 +134,10 @@ public final class LibappCopy {
                 }
                 if (showUpgradeButton && !restoreUpgradeButton(library)) {
                     Log.w(PatchSettings.TAG, "Could not find the upgrade button in libapp.so");
+                    return args;
+                }
+                if (countLimit >= 0 && !setSearchHistoryCount(library, countLimit)) {
+                    Log.w(PatchSettings.TAG, "Could not find the search history count in libapp.so");
                     return args;
                 }
                 if (!directory.isDirectory() && !directory.mkdirs()) return args;
@@ -155,6 +190,60 @@ public final class LibappCopy {
             writeInt(library, found + 12, NOP);
         }
         return true;
+    }
+
+    /**
+     * Sets the limit shown in the search history count of the arm64 libapp.so in {@code library}
+     * without the "升級" text, or restores the app's own badge when {@code limit} is 0.
+     */
+    private static boolean setSearchHistoryCount(byte[] library, int limit) {
+        int clamp = -1;
+        int limitOffset = -1;
+        for (int offset = 0; offset + 32 <= library.length; offset += 4) {
+            if (matches(library, offset, COUNT_CLAMP_HEAD)
+                    && (readInt(library, offset + 16) & CMP_X0_MASK) == CMP_X0
+                    && readInt(library, offset + 20) == COUNT_CLAMP_BRANCH
+                    && (readInt(library, offset + 24) & MOVZ_X0_MASK) == MOVZ_X0
+                    && readInt(library, offset + 28) == COUNT_CLAMP_TAIL) {
+                if (clamp != -1) return false;
+                clamp = offset;
+            }
+            if (matches(library, offset, COUNT_LIMIT_HEAD)
+                    && (readInt(library, offset + 16) & MOVZ_X0_MASK) == MOVZ_X0
+                    && readInt(library, offset + 20) == COUNT_LIMIT_TAIL) {
+                if (limitOffset != -1) return false;
+                limitOffset = offset;
+            }
+        }
+        if (clamp == -1 || limitOffset == -1) return false;
+
+        // The patched text loads other pool entries, but keeps the store in between.
+        int text = clamp + COUNT_TEXT_FROM_CLAMP;
+        if (text + 20 > library.length
+                || readInt(library, text + 8) != COUNT_TEXT_ORIGINAL[2]
+                || !isPoolLoad(library, text, 16) || !isPoolLoad(library, text + 12, 1)) {
+            return false;
+        }
+
+        int value = limit <= 0 ? ORIGINAL_COUNT_LIMIT : limit;
+        writeInt(library, clamp + 16, CMP_X0 | (value << 10));
+        writeInt(library, clamp + 24, MOVZ_X0 | (value << 5));
+        writeInt(library, limitOffset + 16, MOVZ_X0 | (value << 5));
+        if (limit <= 0) {
+            for (int i = 0; i < COUNT_TEXT_ORIGINAL.length; i++) {
+                writeInt(library, text + 4 * i, COUNT_TEXT_ORIGINAL[i]);
+            }
+        }
+        // Otherwise the installed libapp.so already has the text without "升級".
+        return true;
+    }
+
+    /** {@code add xd, x27, #imm, lsl #12; ldr xd, [xd, #imm]}: an object pool load into xd. */
+    private static boolean isPoolLoad(byte[] library, int offset, int rd) {
+        int add = readInt(library, offset);
+        int ldr = readInt(library, offset + 4);
+        return (add & 0xffc003ff) == (0x91400000 | (27 << 5) | rd)
+                && (ldr & 0xffc003ff) == (0xf9400000 | (rd << 5) | rd);
     }
 
     /** Puts back the branch to the upgrade button of the search pages. */
