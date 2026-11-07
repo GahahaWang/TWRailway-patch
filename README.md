@@ -9,6 +9,7 @@
 - **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告），並移除底部預留給橫幅廣告的空白欄位。
 - **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
 - **Hide upgrade button**：台鐵與高鐵搜尋頁不再顯示「付費移除廣告，免開app 直接查」之類的訂閱按鈕（只隱藏按鈕，不會解鎖付費功能）。
+- **Hide promotions**：不再跳出免費版才有的訂閱推廣彈窗（訂閱優惠、節日特價、「解鎖新功能：桌面小工具」），介面和付費版一樣乾淨（只隱藏推廣，不會解鎖付費功能）。
 - **Fix recent apps title**：最近使用的 App 畫面中，標題顯示「火車時刻表」而不是 `app.titleTra`。
 - **Expand search history**：搜尋頁的「最近搜尋」最多顯示 20 筆，而不是預設的 3 筆（筆數可在修補設定調整）。
 - **Patch settings**：新增「修補設定」頁面，在 App 執行中開關上面每個 patch、調整搜尋歷史顯示筆數。
@@ -23,6 +24,7 @@
 | 隱藏廣告 | 立即（已載入的廣告重新啟動後消失） |
 | 隱藏評分彈窗 | 立即 |
 | 隱藏付費推廣按鈕 | 重新啟動 App 後 |
+| 隱藏付費推廣彈窗 | 重新啟動 App 後 |
 | 修正最近使用的 App 標題 | 立即（下次更新標題時） |
 | 展開搜尋歷史／顯示筆數（1–20） | 重新啟動 App 後（頁面下方有「重新啟動 App」按鈕） |
 
@@ -66,6 +68,12 @@ Flutter 的 `--aot-shared-library-name` 參數優先載入副本（Flutter 只�
 **Hide upgrade button** 把 arm64 `libapp.so` 中台鐵、高鐵兩個搜尋頁的這個判斷分支（`tbnz w0, #4`）
 換成 `nop`，讓它永遠回傳空的 `SizedBox`；訂閱狀態本身不受影響。在修補設定關閉時，
 和搜尋歷史筆數一樣改載入一份把分支還原的 `libapp.so` 副本，所以要重新啟動才會生效。
+
+免費版會看到幾種付費版不會出現的訂閱推廣彈窗：訂閱優惠（`PromoController`，限時特價／專屬優惠）、
+節日特價，以及「解鎖新功能：桌面小工具」（`WidgetIntroPopup`）。它們是否出現，由 Firebase Remote Config 的
+`promo_enabled`、`holiday_active`／`holiday_show_popup`、`widget_intro_enabled` 參數決定。
+**Hide promotions** 攔截 firebase_remote_config 外掛把參數交給 Dart 的地方（`getAll` 與啟動時的 plugin constants），
+把這幾個參數改成 `false`，彈窗就不會出現；訂閱狀態與付費功能都不受影響。
 
 側邊欄是 Dart 程式碼（AOT 編譯在 `libapp.so`），無法插入新的按鈕。**Patch settings** 改為：
 把側邊欄「廣告設定」的翻譯字串原地改成同樣長度的「修補設定」，

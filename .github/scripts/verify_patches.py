@@ -11,6 +11,8 @@
   Flutter loader passes the engine a copy of libapp.so with the number set in the patch settings.
 - Hide upgrade button: the arm64 libapp.so never branches to the subscribe button of the
   台鐵 and 高鐵 search pages (`nop` in place of `tbnz w0, #4`).
+- Hide promotions: the firebase_remote_config plugin calls the extension on the parameters
+  it sends to Dart, just before every return, so the promotion popups stay turned off.
 - Patch settings: the extension is merged, the Flutter loader and DartMessenger call it, every
   hook above first checks its setting, and the drawer's 廣告設定 label is renamed to 修補設定.
 """
@@ -195,10 +197,34 @@ def find_methods_calling(dex_files, call):
     return found
 
 
+def check_hide_promotions(dex_files):
+    call = f"{EXTENSION}PromotionOverrides;->overrideRemoteConfig(Ljava/util/Map;)V"
+    hooks = []
+    for dex in dex_files:
+        for class_def in dex.get_classes():
+            if class_def.get_name().startswith(EXTENSION):
+                continue
+            for method in class_def.get_methods():
+                if not method.get_code():
+                    continue
+                instructions = list(method.get_code().get_bc().get_instructions())
+                returns = [i for i, ins in enumerate(instructions) if ins.get_name() == "return-object"]
+                hooked = [i for i in returns if i > 0 and call in instructions[i - 1].get_output()]
+                if hooked:
+                    hooks.append((f"{class_def.get_name()}->{method.get_name()}{method.get_descriptor()}", len(hooked), len(returns)))
+    for hook, hooked, total in hooks:
+        print(f"[{'OK' if hooked == total else 'MISSING'}] remote config hook in {hook}: {hooked}/{total} returns")
+    if len(hooks) != 1 or hooks[0][1] != hooks[0][2]:
+        print("[MISSING] remote config hook")
+        return False
+    print("Hide promotions patch is applied")
+    return True
+
+
 def check_patch_settings(apk_path, dex_files):
     ok = True
     classes = {c.get_name() for dex in dex_files for c in dex.get_classes()}
-    for name in ("PatchSettings", "PatchSettingsEntry", "PatchSettingsDialog", "LibappCopy"):
+    for name in ("PatchSettings", "PatchSettingsEntry", "PatchSettingsDialog", "LibappCopy", "PromotionOverrides"):
         present = f"{EXTENSION}{name};" in classes
         print(f"[{'OK' if present else 'MISSING'}] extension class {name}")
         ok &= present
@@ -235,6 +261,7 @@ def main():
         check_fix_recent_apps_title(dex_files),
         check_expand_search_history(sys.argv[1]),
         check_hide_upgrade_button(sys.argv[1]),
+        check_hide_promotions(dex_files),
         check_patch_settings(sys.argv[1], dex_files),
     ]
     if not all(results):

@@ -23,6 +23,7 @@ public final class PatchSettings {
     public static final String FIX_RECENT_APPS_TITLE = "fix_recent_apps_title";
     public static final String EXPAND_SEARCH_HISTORY = "expand_search_history";
     public static final String HIDE_UPGRADE_BUTTON = "hide_upgrade_button";
+    public static final String HIDE_PROMOTIONS = "hide_promotions";
 
     static final String SEARCH_HISTORY_LIMIT = "search_history_limit";
     /** The search history keeps at most 20 searches, so more cannot be shown. */
@@ -80,6 +81,10 @@ public final class PatchSettings {
 
     public static boolean fixRecentAppsTitle() {
         return isEnabled(FIX_RECENT_APPS_TITLE);
+    }
+
+    public static boolean hidePromotions() {
+        return isEnabled(HIDE_PROMOTIONS);
     }
 
     static boolean expandSearchHistory(Context context) {
