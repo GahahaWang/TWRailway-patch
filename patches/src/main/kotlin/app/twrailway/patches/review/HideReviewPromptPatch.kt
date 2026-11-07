@@ -5,6 +5,9 @@ import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
+import app.twrailway.patches.settings.PATCH_SETTINGS_CLASS
+import app.twrailway.patches.settings.markPatchApplied
+import app.twrailway.patches.settings.patchSettingsPatch
 import app.twrailway.patches.shared.Constants.COMPATIBILITY_TRAIN_SCHEDULE
 import com.android.tools.smali.dexlib2.iface.ClassDef
 
@@ -16,7 +19,7 @@ import com.android.tools.smali.dexlib2.iface.ClassDef
  * - `rateMyApp_doNotOpenAgain`: the rate_my_app package dialog.
  *
  * The native `getBool` implementations are hooked so these keys always read as
- * "do not show the dialog", whatever is stored.
+ * "do not show the dialog", whatever is stored. It can be turned off in the patch settings.
  */
 @Suppress("unused")
 val hideReviewPromptPatch = bytecodePatch(
@@ -26,7 +29,11 @@ val hideReviewPromptPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_TRAIN_SCHEDULE)
 
+    dependsOn(patchSettingsPatch)
+
     execute {
+        markPatchApplied("hide_review_prompt")
+
         val setUpMethod = SharedPreferencesAsyncApiSetUpFingerprint.method
         val apiInterface = setUpMethod.parameterTypes[1].toString()
 
@@ -56,6 +63,9 @@ val hideReviewPromptPatch = bytecodePatch(
                 method.addInstructionsWithLabels(
                     0,
                     """
+                        invoke-static { }, $PATCH_SETTINGS_CLASS->hideReviewPrompt()Z
+                        move-result v0
+                        if-eqz v0, :original
                         const-string v0, "shouldShowReviewKey"
                         invoke-virtual { p1, v0 }, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
                         move-result v0
