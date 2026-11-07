@@ -26,35 +26,6 @@ jobs:
           for f in config.arm64_v8a.apk split_config.arm64_v8a.apk; do [ -f "$f" ] && unzip -q "$f" -d arm || true; done
           find arm -name '*.so' | xargs ls -la
 
-      - name: Manifest
-        run: |
-          python -m venv v && v/bin/pip install -q androguard
-          v/bin/python - <<'PY'
-          from androguard.core.apk import APK
-          a = APK('x/com.tsumii.trainschedule.apk')
-          print(a.get_android_manifest_axml().get_xml().decode())
-          PY
-
-      - name: Decompile with jadx
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download --repo skylot/jadx --pattern 'jadx-[0-9]*.zip' --output jadx.zip
-          unzip -q jadx.zip -d jadx
-          jadx/bin/jadx -d out --no-res x/com.tsumii.trainschedule.apk > /dev/null 2>&1 || true
-          echo "== top-level packages =="; ls out/sources
-          echo "== app package files =="; find out/sources/com/tsumii -name '*.java' | head -100
-          echo "== app package matches =="
-          grep -rniE "$PAT" out/sources/com/tsumii | head -200 || true
-          echo "== MainActivity =="
-          find out/sources/com/tsumii -name '*.java' -size -20k -exec sh -c 'echo "---- $1"; cat "$1"' _ {} \; | head -600
-
-      - name: Flutter assets
-        run: |
-          find x/base/assets/flutter_assets -type f | head -200
-          echo "== asset matches =="
-          grep -rniEo ".{0,60}$PAT.{0,60}" x/base/assets/flutter_assets --include='*.json' --include='*.txt' --include='*.yaml' | head -200 || true
-
       - name: Dart snapshot strings
         run: |
           SO=$(find x/arm -name libapp.so | head -1)
@@ -63,12 +34,26 @@ jobs:
           wc -l dart.txt
           echo "== keyword matches =="
           grep -iE "$PAT" dart.txt | sort -u | head -600
-          echo "== package: uris =="
-          grep -oE 'package:[a-zA-Z0-9_]+/[^ ]+' dart.txt | sort -u | head -400
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: inspect
-          path: |
-            dart.txt
-            out/sources/com/tsumii
+          echo "== app package uris =="
+          grep -oE 'package:[a-zA-Z0-9_]+/[^ ]+' dart.txt | grep -vE 'package:(flutter|firebase|_flutterfire|characters|collection|crypto|csslib|equatable|get|html|http|intl|path|vector_math|meta|async|typed_data|source_span|string_scanner|term_glyph|web|xml|google_mobile_ads|shared_preferences|url_launcher|webview|plugin_platform|rate_my_app|in_app|home_widget|package_info|geolocator|cached|sqflite|uuid|logging|petitparser|clock|fixnum|protobuf|grpc|json|flutter_)' | sort -u | head -300
+          for k in debug_live_map AnalyticsDebugRecorder debugEnabledFeatureFlags widget.unlock 'unlock failed' DebuggableCondition; do
+            echo "== context: $k =="
+            grep -n -F -m 3 "$k" dart.txt | while IFS=: read n _; do sed -n "$((n-25)),$((n+25))p" dart.txt; echo -----; done
+          done
+          echo "== CJK strings =="
+          python3 - "$SO" <<'PY'
+          import re,sys
+          d=open(sys.argv[1],'rb').read()
+          out=set()
+          for m in re.finditer(rb'[\x20-\x7e\xc0-\xff\x80-\xbf]{6,}',d):
+              try: t=m.group().decode('utf-8')
+              except: continue
+              if re.search(r'[\u4e00-\u9fff]',t): out.add(t)
+          print(len(out))
+          for t in sorted(out):
+              if re.search(r'設定|開發|測試|除錯|版本|隱藏|進階|實驗|管理|偵錯|模式|debug|Debug',t): print(t[:200])
+          PY
+          echo "== translation keys =="
+          grep -oE 'word\.word[A-Za-z0-9_]*|app\.[A-Za-z0-9_]+|setting[A-Za-z0-9_.]*' dart.txt | sort -u | head -400
+          echo "== remote config / prefs keys =="
+          grep -E '^[a-z][a-z0-9]*(_[a-z0-9]+)+$' dart.txt | sort -u | head -400
