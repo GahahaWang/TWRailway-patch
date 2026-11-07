@@ -47,7 +47,13 @@ jobs:
           PY
           cd bout
           echo "======== pool strings"
-          grep -nE 'String: "(|\)|\) | )"$' pp.txt | head -20
+          grep -nE 'String: "\)"$' pp.txt | head -5
+          sed -n 104,110p pp.txt | cat -A | cut -c1-120
+          echo "======== asm uses of empty and close paren"
+          grep -rhoE '\[pp\+0x[0-9a-f]+\] ""$' asm | sort | uniq -c | sort -rn | head -5
+          grep -rhoE '\[pp\+0x[0-9a-f]+\] "\)"$' asm | sort | uniq -c | sort -rn | head -5
+          grep -rhE '; \[pp\+0x[0-9a-f]+\] ""$' asm | head -5
+          grep -rhE '; \[pp\+0x[0-9a-f]+\] "\)"$' asm | head -5
 
       - uses: actions/upload-artifact@v7
         if: always()
