@@ -31,27 +31,26 @@ jobs:
 
       - name: Dump
         run: |
-          cd bout
-          echo "======== HistoryUpgradeBadge.dart"
-          cat asm/trainschedule/component/subscription/HistoryUpgradeBadge.dart
-          echo "======== SearchPage history closures"
-          python3 - <<'PY'
-          import re
-          src=open('asm/trainschedule/train/SearchPage.dart').read()
-          funcs=re.split(r'\n(?=  [^ /].*\(/\*)', src)
-          for f in funcs:
-              if any(k in f for k in ('HistoryUpgradeBadge','history_limit','"search.history"')):
-                  print('########', f.strip().split('\n')[0])
-                  print(f)
+          SO=$(find x/arm -name libapp.so | head -1)
+          python3 - "$SO" <<'PY'
+          import sys, struct
+          d=open(sys.argv[1],'rb').read()
+          pats={
+            'clamp':[0xf840b020,0xb6f80060,0xd2800000,0x14000004,0xf1000c1f,0x5400004d,0xd2800060,0xf81f83a0],
+            'text':[0x91407370,0xf9466e10,0xb801f050,0x91407361,0xf9467021],
+            'limit':[0xaa0003e3,0xf85c83a0,0xf81e83a3,0xf800b060,0xd2800060,0xf8013060],
+          }
+          for k,v in pats.items():
+              b=b''.join(struct.pack('<I',w) for w in v)
+              offs=[i for i in range(0,len(d)-len(b),4) if d[i:i+len(b)]==b]
+              print(k,[hex(o) for o in offs])
           PY
-          echo "======== pp strings"
-          grep -nE '升級|Upgrade|upgrade|pw\.featHistory|search\.history' pp.txt | head -80
-          echo "======== translations"
-          grep -rhoE '"[a-zA-Z.]*(upgrade|Upgrade|history|History)[a-zA-Z.]*": "[^"]*"' asm/trainschedule/i18n | sort -u | head -80
-          grep -rn '升級' asm/trainschedule | head -40
+          cd bout
+          echo "======== pool strings"
+          grep -nE 'String: "(|\)|\) | )"$' pp.txt | head -20
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: inspect
-          path: bout/asm/trainschedule
+          path: bout/pp.txt
