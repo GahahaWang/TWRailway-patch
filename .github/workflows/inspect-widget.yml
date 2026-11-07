@@ -24,46 +24,6 @@ jobs:
           mkdir base arm && unzip -q com.tsumii.trainschedule.apk -d base
           for f in config.arm64_v8a.apk split_config.arm64_v8a.apk; do [ -f "$f" ] && unzip -q "$f" -d arm || true; done
 
-      - name: Manifest and native classes
-        run: |
-          python -m venv "$RUNNER_TEMP/venv"
-          "$RUNNER_TEMP/venv/bin/pip" install --quiet androguard
-          "$RUNNER_TEMP/venv/bin/python" - <<'PY'
-          from androguard.misc import AnalyzeAPK
-          a, d, dx = AnalyzeAPK("x/com.tsumii.trainschedule.apk")
-          print(a.get_android_manifest_axml().get_xml().decode()[:40000])
-          print("== classes with widget ==")
-          for c in dx.get_classes():
-              n = c.name
-              if any(k in n.lower() for k in ("widget", "appwidget", "glance", "remoteview", "tsumii")) and not n.startswith("Landroidx/") and not n.startswith("Landroid/"):
-                  print(n)
-          print("== strings ==")
-          for s in dx.get_strings():
-              v = s.get_value()
-              if any(k in v.lower() for k in ("widget", "home_widget", "enabled", "remote_config", "feature")):
-                  print(repr(v[:200]))
-          PY
-          find x/base/res -iname '*widget*' | head -40
-
-      - name: Dart snapshot strings
-        run: |
-          SO=$(find x/arm -name libapp.so | head -1)
-          strings -n 3 "$SO" > dart.txt
-          echo "== keyword matches =="
-          grep -iE 'widget|realtime|live|enable|feature|flag|remote' dart.txt | sort -u | head -800
-          echo "== CJK strings =="
-          python3 - "$SO" <<'PY'
-          import re,sys
-          d=open(sys.argv[1],'rb').read()
-          out=set()
-          for m in re.finditer(rb'[\x20-\x7e\xc0-\xff\x80-\xbf]{3,}',d):
-              try: t=m.group().decode('utf-8')
-              except: continue
-              if re.search(r'[一-鿿]',t): out.add(t)
-          for t in sorted(out):
-              if re.search(r'小工具|即時|路線|桌面|開啟|啟用|關閉|實驗|測試',t): print(t[:300])
-          PY
-
       - name: Blutter
         run: |
           sudo apt-get update -q
@@ -75,12 +35,16 @@ jobs:
 
       - name: Blutter matches
         run: |
-          cd bout
-          echo "== files =="
-          find asm -type f | grep -iE 'widget|live|route|config|setting|feature' | grep -v '/flutter/' | head -300
-          echo "== home_widget refs =="
-          grep -rln -iE 'home_widget|HomeWidget|updateWidget|saveWidgetData|widget_enable|enableWidget|widgetEnable' asm | grep -v '/flutter/' | head -80
-          grep -rn -iE '"[a-z_]*widget[a-z_]*"' asm | grep -v '/flutter/' | head -150
+          cd bout/asm/trainschedule
+          for f in data/widget/WidgetRefresher.dart data/widget/WidgetService.dart data/widget/WidgetConfig.dart data/subscription/SubscriptionConfig.dart component/WidgetSettingsPage.dart; do
+            echo "======== $f ($(wc -l < $f) lines)"
+            grep -nE '^ *(static |)[A-Za-z_<>?, ]+ [a-zA-Z_]+\(|^class |^ *// .*(\[pp\+0x[0-9a-f]+\] "[^"]*"|r[0-9]+ = (true|false))|bl +0x[0-9a-f]+ *; \[' "$f" | grep -vE 'AllocateStack|_stackOverflow|StackOverflow' | sed -E 's/^([0-9]+:) +/\1 /' | grep -vE 'Allocate[A-Z]|WriteBarrier|InitLateStaticField' | head -700
+          done
+          echo "== entitlement / premium refs =="
+          grep -rn -iE '"[^"]*(entitle|premium|isPro|pro_|subscri|vip|unlock)[^"]*"' . | grep -oE '"[^"]*"' | sort | uniq -c | sort -rn | head -120
+          echo "== who reads widget_subscribed / isSubscribed =="
+          grep -rln -iE 'isSubscribed|isPremium|hasEntitlement|isPro\b|get:isPro|widgetUnlocked|isWidget' . | head -60
+          grep -rn -E '^  [A-Za-z_<>?, ]+ (get:)?[a-zA-Z_]*([Ss]ubscri|[Pp]remium|[Pp]ro[A-Z]|[Ee]ntitle|[Uu]nlock)[a-zA-Z_]*\(' . | head -120
 
       - uses: actions/upload-artifact@v7
         if: always()
