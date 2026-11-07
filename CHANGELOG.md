@@ -1,3 +1,9 @@
+## [1.8.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.7.0...v1.8.0) (2026-11-07)
+
+### ✨ New Features
+
+* Add Fix search history count patch ([2256c8a](https://github.com/GahahaWang/TWRailway-patch/commit/2256c8a1cfa4fa7955c0f46ca657e0152b4c7405))
+
 ## [1.7.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.6.0...v1.7.0) (2026-11-07)
 
 ### ✨ New Features
