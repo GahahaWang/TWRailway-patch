@@ -9,6 +9,7 @@
 - **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告），並移除底部預留給橫幅廣告的空白欄位。
 - **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
 - **Fix recent apps title**：最近使用的 App 畫面中，標題顯示「火車時刻表」而不是 `app.titleTra`。
+- **Expand search history**：搜尋頁的「最近搜尋」最多顯示 20 筆，而不是預設的 3 筆。
 
 已用 **5.3.4**（version code 74）實際套用並驗證；其他版本標示為實驗性支援。
 
@@ -31,6 +32,13 @@ App 會像處理沒有廣告可填的請求一樣處理，廣告不會顯示，�
 App 在翻譯（GetX）載入前就取 `app.titleTra` 的翻譯，結果把翻譯鍵本身當成標題。
 **Fix recent apps title** 攔截 Flutter embedding 的這個呼叫：標題若是未翻譯的鍵（`word.word…` 形式），
 改用 App 本身的名稱「火車時刻表」。
+
+搜尋歷史本來就會保存最近 20 筆，但搜尋頁只顯示其中 3 筆，訂閱後才顯示 20 筆。
+這段邏輯在 Dart 的 `SearchHistoryManager.getVisibleItems`（`items.take(isPremium ? 20 : 3)`），
+AOT 編譯在 `libapp.so` 裡，無法用 smali 修改。**Expand search history** 直接改 arm64 `libapp.so`
+的這段指令：把 `csetm x0, eq` 換成 `mov x0, #0x22`，讓上限永遠是 20。
+patch 以指令的位元組序列比對，找不到或不只一處時會直接失敗，不會改錯地方；
+目前只支援 arm64-v8a。
 
 ### How to use these patches
 
