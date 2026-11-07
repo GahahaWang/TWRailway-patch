@@ -1,3 +1,9 @@
+## [1.8.1](https://github.com/GahahaWang/TWRailway-patch/compare/v1.8.0...v1.8.1) (2026-11-07)
+
+### 🐛 Bug Fixes
+
+* Hide the 喜歡這個App嗎 review dialog ([43a11f0](https://github.com/GahahaWang/TWRailway-patch/commit/43a11f0cde0abbfc4d5dec31ec3e980621ee0e7a))
+
 ## [1.8.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.7.0...v1.8.0) (2026-11-07)
 
 ### ✨ New Features

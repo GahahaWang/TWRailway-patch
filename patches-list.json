@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "patches": [
     {
       "name": "Expand search history",
@@ -174,7 +174,7 @@
     },
     {
       "name": "Hide review prompt",
-      "description": "Stops the \"App好用嗎？\" dialog asking to rate the app from showing.",
+      "description": "Stops the \"喜歡這個App嗎？\" dialog asking to rate the app from showing.",
       "default": true,
       "category": null,
       "compatiblePackages": [
