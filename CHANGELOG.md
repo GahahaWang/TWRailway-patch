@@ -4,6 +4,12 @@
 
 * Add Hide upgrade button patch ([5964a95](https://github.com/GahahaWang/TWRailway-patch/commit/5964a95a8569a27378d36fd2f356157ee0ff26e8))
 
+## [1.6.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.5.0...v1.6.0) (2026-11-07)
+
+### ✨ New Features
+
+* Add Hide upgrade button patch ([5964a95](https://github.com/GahahaWang/TWRailway-patch/commit/5964a95a8569a27378d36fd2f356157ee0ff26e8))
+
 ## [1.5.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.4.0...v1.5.0) (2026-11-07)
 
 ### ✨ New Features
