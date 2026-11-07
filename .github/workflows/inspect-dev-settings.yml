@@ -1,0 +1,74 @@
+name: Inspect developer settings
+
+# Temporary: dumps manifest, decompiled app code and Dart strings that look like
+# developer / debug settings, so they can be read from the job log.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/project-thread-efyuhq
+
+env:
+  APK_URL: https://drive.usercontent.google.com/download?id=16G97lUdjIQ8HjX1rO9NMuPj30nF4lR37&export=download&confirm=t
+  PAT: '(debug|developer|devmode|dev_mode|dev mode|devoption|dev_option|testmode|test_mode|isdev|isdebug|isbeta|beta|staging|admin|hidden|secret|easter|unlock|kdebug|kreleasemode|kprofilemode|開發|除錯|測試|隱藏)'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and unpack
+        run: |
+          curl -fsSL -o app.xapk "$APK_URL"
+          mkdir x && cd x && unzip -q ../app.xapk && ls -la
+          cat manifest.json || true
+          mkdir base arm && unzip -q com.tsumii.trainschedule.apk -d base
+          for f in config.arm64_v8a.apk split_config.arm64_v8a.apk; do [ -f "$f" ] && unzip -q "$f" -d arm || true; done
+          find arm -name '*.so' | xargs ls -la
+
+      - name: Manifest
+        run: |
+          python -m venv v && v/bin/pip install -q androguard
+          v/bin/python - <<'PY'
+          from androguard.core.apk import APK
+          a = APK('x/com.tsumii.trainschedule.apk')
+          print(a.get_android_manifest_axml().get_xml().decode())
+          PY
+
+      - name: Decompile with jadx
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo skylot/jadx --pattern 'jadx-[0-9]*.zip' --output jadx.zip
+          unzip -q jadx.zip -d jadx
+          jadx/bin/jadx -d out --no-res x/com.tsumii.trainschedule.apk > /dev/null 2>&1 || true
+          echo "== top-level packages =="; ls out/sources
+          echo "== app package files =="; find out/sources/com/tsumii -name '*.java' | head -100
+          echo "== app package matches =="
+          grep -rniE "$PAT" out/sources/com/tsumii | head -200 || true
+          echo "== MainActivity =="
+          find out/sources/com/tsumii -name '*.java' -size -20k -exec sh -c 'echo "---- $1"; cat "$1"' _ {} \; | head -600
+
+      - name: Flutter assets
+        run: |
+          find x/base/assets/flutter_assets -type f | head -200
+          echo "== asset matches =="
+          grep -rniEo ".{0,60}$PAT.{0,60}" x/base/assets/flutter_assets --include='*.json' --include='*.txt' --include='*.yaml' | head -200 || true
+
+      - name: Dart snapshot strings
+        run: |
+          SO=$(find x/arm -name libapp.so | head -1)
+          strings -n 4 "$SO" > dart.txt
+          strings -n 4 -e l "$SO" >> dart.txt || true
+          wc -l dart.txt
+          echo "== keyword matches =="
+          grep -iE "$PAT" dart.txt | sort -u | head -600
+          echo "== package: uris =="
+          grep -oE 'package:[a-zA-Z0-9_]+/[^ ]+' dart.txt | sort -u | head -400
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: inspect
+          path: |
+            dart.txt
+            out/sources/com/tsumii
