@@ -9,7 +9,22 @@
 - **Hide ads**：讓 App 不再載入任何廣告（橫幅、插頁、原生、開啟應用程式廣告），並移除底部預留給橫幅廣告的空白欄位。
 - **Hide review prompt**：不再跳出「App好用嗎？」請你評分的彈窗。
 - **Fix recent apps title**：最近使用的 App 畫面中，標題顯示「火車時刻表」而不是 `app.titleTra`。
-- **Expand search history**：搜尋頁的「最近搜尋」最多顯示 20 筆，而不是預設的 3 筆。
+- **Expand search history**：搜尋頁的「最近搜尋」最多顯示 20 筆，而不是預設的 3 筆（筆數可在修補設定調整）。
+- **Patch settings**：新增「修補設定」頁面，在 App 執行中開關上面每個 patch、調整搜尋歷史顯示筆數。
+
+### 修補設定
+
+側邊欄「設定」區塊中原本的「廣告設定」會變成「修補設定」，點進去開啟修補設定頁面；
+也可以長按桌面上的 App 圖示，選「修補設定」捷徑。
+
+| 設定 | 生效時機 |
+| --- | --- |
+| 隱藏廣告 | 立即（已載入的廣告重新啟動後消失） |
+| 隱藏評分彈窗 | 立即 |
+| 修正最近使用的 App 標題 | 立即（下次更新標題時） |
+| 展開搜尋歷史／顯示筆數（1–20） | 重新啟動 App 後（頁面下方有「重新啟動 App」按鈕） |
+
+修補時沒有勾選的 patch 會在頁面上標示為未套用。
 
 已用 **5.3.4**（version code 74）實際套用並驗證；其他版本標示為實驗性支援。
 
@@ -39,6 +54,16 @@ AOT 編譯在 `libapp.so` 裡，無法用 smali 修改。**Expand search history
 的這段指令：把 `csetm x0, eq` 換成 `mov x0, #0x22`，讓上限永遠是 20。
 patch 以指令的位元組序列比對，找不到或不只一處時會直接失敗，不會改錯地方；
 目前只支援 arm64-v8a。
+筆數寫死在編譯後的程式碼裡，無法直接讀設定；修補設定改成 20 以外的筆數時，
+extension 會在 App 的內部儲存空間寫一份改好筆數的 `libapp.so` 副本，App 啟動時用
+Flutter 的 `--aot-shared-library-name` 參數優先載入副本（Flutter 只接受內部儲存空間的路徑），
+所以要重新啟動才會生效。App 更新或重新修補後副本會自動重建。
+
+側邊欄是 Dart 程式碼（AOT 編譯在 `libapp.so`），無法插入新的按鈕。**Patch settings** 改為：
+把側邊欄「廣告設定」的翻譯字串原地改成同樣長度的「修補設定」，
+並攔截 Flutter 經 `flutter/navigation` channel 回報給原生端的路由（GetX 的 `/AdSettingsPage`），
+一打開廣告設定頁就把它關掉，改顯示原生的修補設定頁面（extension 中的全螢幕 Dialog，不需改 manifest）。
+既然廣告已被隱藏，這個入口原本的功能也用不到。設定存在 App 的 `twrailway_patches` SharedPreferences。
 
 ### How to use these patches
 

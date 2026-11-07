@@ -7,7 +7,10 @@
 - Fix recent apps title: the Flutter embedding's setApplicationSwitcherDescription starts
   with the injected check that replaces an untranslated key label with the app's label.
 - Expand search history: the arm64 libapp.so computes the visible search history limit as
-  20 whatever the subscription state (`mov x0, #0x22` in place of `csetm x0, eq`).
+  20 whatever the subscription state (`mov x0, #0x22` in place of `csetm x0, eq`), and the
+  Flutter loader passes the engine a copy of libapp.so with the number set in the patch settings.
+- Patch settings: the extension is merged, the Flutter loader and DartMessenger call it, every
+  hook above first checks its setting, and the drawer's 廣告設定 label is renamed to 修補設定.
 """
 import sys
 import zipfile
@@ -45,7 +48,7 @@ def find_review_hooks(dex_files):
                 if not method.get_code() or method.get_descriptor().split(")")[1] != "Ljava/lang/Boolean;":
                     continue
                 head = [i.get_output() for i in list(method.get_code().get_bc().get_instructions())[:12]]
-                if any('"shouldShowReviewKey"' in o for o in head) and any('"rateMyApp_doNotOpenAgain"' in o for o in head):
+                if any('"shouldShowReviewKey"' in o for o in head) and any("->hideReviewPrompt()Z" in o for o in head) and any('"rateMyApp_doNotOpenAgain"' in o for o in head):
                     hooks.append(f"{class_def.get_name()}->{method.get_name()}{method.get_descriptor()}")
     return hooks
 
@@ -74,7 +77,8 @@ def find_title_hooks(dex_files):
                 if not any("Landroid/app/Activity;->setTaskDescription" in o for o in outputs):
                     continue
                 head = outputs[:20]
-                if any("Ljava/lang/String;->matches" in o for o in head) and any("loadLabel" in o for o in head):
+                if (any("Ljava/lang/String;->matches" in o for o in head) and any("loadLabel" in o for o in head)
+                        and any("->fixRecentAppsTitle()Z" in o for o in head)):
                     hooks.append(f"{class_def.get_name()}->{method.get_name()}{method.get_descriptor()}")
     return hooks
 
@@ -125,6 +129,7 @@ def check_hide_ads(dex_files):
 
     text = "\n".join(head)
     checks = {
+        "hideAds setting": "->hideAds()Z" in text,
         'const-string "load"': 'const-string' in text and '"load"' in text,
         "String.startsWith": "Ljava/lang/String;->startsWith" in text,
         "onAdFailedToLoad (no fill)": '"No fill."' in text,
@@ -139,6 +144,56 @@ def check_hide_ads(dex_files):
     return True
 
 
+EXTENSION = "Lapp/twrailway/extension/"
+
+
+def find_methods_calling(dex_files, call):
+    found = []
+    for dex in dex_files:
+        for class_def in dex.get_classes():
+            if class_def.get_name().startswith(EXTENSION):
+                continue
+            for method in class_def.get_methods():
+                if not method.get_code():
+                    continue
+                head = [i.get_output() for i in list(method.get_code().get_bc().get_instructions())[:6]]
+                if any(call in o for o in head):
+                    found.append(f"{class_def.get_name()}->{method.get_name()}{method.get_descriptor()}")
+    return found
+
+
+def check_patch_settings(apk_path, dex_files):
+    ok = True
+    classes = {c.get_name() for dex in dex_files for c in dex.get_classes()}
+    for name in ("PatchSettings", "PatchSettingsEntry", "PatchSettingsDialog", "SearchHistoryLimit"):
+        present = f"{EXTENSION}{name};" in classes
+        print(f"[{'OK' if present else 'MISSING'}] extension class {name}")
+        ok &= present
+
+    hooks = {
+        "Flutter loader -> PatchSettings.init": f"{EXTENSION}PatchSettings;->init(Landroid/content/Context;)V",
+        "Flutter loader -> SearchHistoryLimit.flutterShellArgs": f"{EXTENSION}SearchHistoryLimit;->flutterShellArgs",
+        "DartMessenger -> PatchSettingsEntry.onMessageFromDart": f"{EXTENSION}PatchSettingsEntry;->onMessageFromDart",
+    }
+    for label, call in hooks.items():
+        found = find_methods_calling(dex_files, call)
+        print(f"[{'OK' if len(found) == 1 else 'MISSING'}] {label} {found}")
+        ok &= len(found) == 1
+
+    with zipfile.ZipFile(apk_path) as apk:
+        names = [n for n in apk.namelist() if n.startswith("lib/arm64-v8a/") and n.endswith("/libapp.so")]
+        data = apk.read(names[0]) if names else b""
+    # Snapshot strings: a length byte (0x80 | length << 1 | isTwoByte), then UTF-16LE.
+    renamed = data.count(bytes([0x80 | 4 << 1 | 1]) + "修補設定".encode("utf-16-le"))
+    original = data.count(bytes([0x80 | 4 << 1 | 1]) + "廣告設定".encode("utf-16-le"))
+    print(f"[{'OK' if renamed == 1 and original == 0 else 'MISSING'}] drawer label 修補設定 x{renamed}, 廣告設定 x{original}")
+    ok &= renamed == 1 and original == 0
+
+    if ok:
+        print("Patch settings patch is applied")
+    return ok
+
+
 def main():
     dex_files = load_dex_files(sys.argv[1])
     results = [
@@ -146,6 +201,7 @@ def main():
         check_hide_review_prompt(dex_files),
         check_fix_recent_apps_title(dex_files),
         check_expand_search_history(sys.argv[1]),
+        check_patch_settings(sys.argv[1], dex_files),
     ]
     if not all(results):
         sys.exit("Some patches were NOT applied")

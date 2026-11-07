@@ -1,42 +1,18 @@
 package app.twrailway.patches.history
 
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.rawResourcePatch
+import app.twrailway.patches.settings.EXTENSION_PACKAGE
+import app.twrailway.patches.settings.FlutterLoaderEnsureInitializationCompleteFingerprint
+import app.twrailway.patches.settings.markPatchApplied
+import app.twrailway.patches.settings.patchSettingsPatch
 import app.twrailway.patches.shared.Constants.COMPATIBILITY_TRAIN_SCHEDULE
 import java.util.logging.Logger
 
-/**
- * The search history (最近搜尋) keeps up to 20 searches, but the search page only shows 3 of them
- * unless the subscription is active. This is decided in Dart, which is AOT compiled to
- * `libapp.so`:
- *
- * ```dart
- * // SearchHistoryManager.getVisibleItems
- * List<SearchHistoryItem> getVisibleItems(bool isPremium) =>
- *     items.take(isPremium ? 20 : 3).toList();
- * ```
- *
- * which compiles (arm64) to the Smi arithmetic below, where `x2` is the bool argument and `x0`
- * ends up as the Smi 3 (6) or 20 (0x28):
- *
- * ```
- * tst   x2, #0x10
- * csetm x0, eq          ; -1 if isPremium, else 0
- * mov   x16, #0x22
- * and   x0, x0, x16
- * add   x0, x0, #6
- * ```
- *
- * The patch replaces `csetm x0, eq` with `mov x0, #0x22`, so the limit is always 20.
- */
-@Suppress("unused")
-val expandSearchHistoryPatch = rawResourcePatch(
-    name = "Expand search history",
-    description = "Shows up to 20 recent searches instead of 3.",
-    default = true,
-) {
-    compatibleWith(COMPATIBILITY_TRAIN_SCHEDULE)
-
+/** Sets the search history limit to 20 in libapp.so. */
+private val searchHistoryLimitLibraryPatch = rawResourcePatch {
     execute {
         val libraries = listApkEntries("lib/").filter { it.endsWith("/libapp.so") }
         if (libraries.isEmpty()) throw PatchException("Could not find libapp.so")
@@ -61,6 +37,59 @@ val expandSearchHistoryPatch = rawResourcePatch(
         }
 
         if (patchedCount == 0) throw PatchException("Could not find an arm64-v8a libapp.so to patch")
+    }
+}
+
+/**
+ * The search history (最近搜尋) keeps up to 20 searches, but the search page only shows 3 of them
+ * unless the subscription is active. This is decided in Dart, which is AOT compiled to
+ * `libapp.so`:
+ *
+ * ```dart
+ * // SearchHistoryManager.getVisibleItems
+ * List<SearchHistoryItem> getVisibleItems(bool isPremium) =>
+ *     items.take(isPremium ? 20 : 3).toList();
+ * ```
+ *
+ * which compiles (arm64) to the Smi arithmetic below, where `x2` is the bool argument and `x0`
+ * ends up as the Smi 3 (6) or 20 (0x28):
+ *
+ * ```
+ * tst   x2, #0x10
+ * csetm x0, eq          ; -1 if isPremium, else 0
+ * mov   x16, #0x22
+ * and   x0, x0, x16
+ * add   x0, x0, #6
+ * ```
+ *
+ * The patch replaces `csetm x0, eq` with `mov x0, #0x22`, so the limit is always 20.
+ *
+ * The number can be changed in the patch settings (1 to 20, or the app's own behavior). As it is
+ * compiled code, the extension writes a copy of libapp.so with that number to the app's files
+ * directory and passes it to the Flutter engine (`--aot-shared-library-name`) when the app starts,
+ * see `SearchHistoryLimit` in the extension. The default of 20 uses the installed libapp.so.
+ */
+@Suppress("unused")
+val expandSearchHistoryPatch = bytecodePatch(
+    name = "Expand search history",
+    description = "Shows up to 20 recent searches instead of 3. The number can be changed in the patch settings.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_TRAIN_SCHEDULE)
+
+    dependsOn(patchSettingsPatch, searchHistoryLimitLibraryPatch)
+
+    execute {
+        markPatchApplied("expand_search_history")
+
+        // Load a copy of libapp.so with the number of searches set in the patch settings.
+        FlutterLoaderEnsureInitializationCompleteFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static/range { p1 .. p2 }, $EXTENSION_PACKAGE/SearchHistoryLimit;->flutterShellArgs(Landroid/content/Context;[Ljava/lang/String;)[Ljava/lang/String;
+                move-result-object p2
+            """,
+        )
     }
 }
 
