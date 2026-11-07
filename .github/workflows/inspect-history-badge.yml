@@ -1,0 +1,57 @@
+name: Inspect history badge
+
+# Temporary: dumps the Dart code of the search history count and upgrade badge.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/project-thread-h38tt0
+
+env:
+  APK_URL: https://drive.usercontent.google.com/download?id=16G97lUdjIQ8HjX1rO9NMuPj30nF4lR37&export=download&confirm=t
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and unpack
+        run: |
+          curl -fsSL -o app.xapk "$APK_URL"
+          mkdir x && cd x && unzip -q ../app.xapk
+          mkdir arm && unzip -q config.arm64_v8a.apk -d arm
+
+      - name: Blutter
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q python3-pyelftools python3-requests git cmake ninja-build build-essential pkg-config libicu-dev libcapstone-dev
+          git clone --depth 1 https://github.com/worawit/blutter.git
+          LIBDIR=$(dirname "$(find x/arm -name libapp.so | head -1)")
+          python3 blutter/blutter.py "$LIBDIR" bout > blutter.log 2>&1 || { tail -80 blutter.log; exit 1; }
+
+      - name: Dump
+        run: |
+          cd bout
+          echo "======== HistoryUpgradeBadge.dart"
+          cat asm/trainschedule/component/subscription/HistoryUpgradeBadge.dart
+          echo "======== SearchPage history closures"
+          python3 - <<'PY'
+          import re
+          src=open('asm/trainschedule/train/SearchPage.dart').read()
+          funcs=re.split(r'\n(?=  [^ /].*\(/\*)', src)
+          for f in funcs:
+              if any(k in f for k in ('HistoryUpgradeBadge','history_limit','"search.history"')):
+                  print('########', f.strip().split('\n')[0])
+                  print(f)
+          PY
+          echo "======== pp strings"
+          grep -nE '升級|Upgrade|upgrade|pw\.featHistory|search\.history' pp.txt | head -80
+          echo "======== translations"
+          grep -rhoE '"[a-zA-Z.]*(upgrade|Upgrade|history|History)[a-zA-Z.]*": "[^"]*"' asm/trainschedule/i18n | sort -u | head -80
+          grep -rn '升級' asm/trainschedule | head -40
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: inspect
+          path: bout/asm/trainschedule
