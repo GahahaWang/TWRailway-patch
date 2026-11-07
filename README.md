@@ -100,9 +100,9 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.6.0](https://github.com/GahahaWang/TWRailway-patch/releases/tag/v1.6.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
+> **[v1.7.0](https://github.com/GahahaWang/TWRailway-patch/releases/tag/v1.7.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;7 patches total
 <details open>
-<summary>📦 火車時刻表&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
+<summary>📦 火車時刻表&nbsp;&nbsp;•&nbsp;&nbsp;7 patches</summary>
 <br>
 
 **Package name:** `com.tsumii.trainschedule`
@@ -117,6 +117,7 @@ java -jar morphe-desktop-*-all.jar patch -p patches.mpp "$PWD/火車時刻表.xa
 | [Expand search history](#expand-search-history) | Shows up to 20 recent searches instead of 3. The number can be changed in the patch settings. |  |
 | [Fix recent apps title](#fix-recent-apps-title) | Shows the app name instead of "app.titleTra" as the app's title in the recent apps screen. |  |
 | [Hide ads](#hide-ads) | Stops the app from loading banner, interstitial, native and app open ads, and removes the empty space reserved for the banner. |  |
+| [Hide promotions](#hide-promotions) | Stops the subscription promotion popups (discount, holiday sale and widget intro) that only free users see. Paid features are not unlocked. |  |
 | [Hide review prompt](#hide-review-prompt) | Stops the "App好用嗎？" dialog asking to rate the app from showing. |  |
 | [Hide upgrade button](#hide-upgrade-button) | Hides the subscribe button (such as "付費移除廣告，免開app 直接查") of the search pages. It can be shown again in the patch settings. |  |
 | [Patch settings](#patch-settings) | Adds a "修補設定" page to turn the other patches on or off and adjust them while the app runs. It replaces the "廣告設定" item in the drawer's 設定 section, and is also a shortcut on the app icon. |  |

@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "patches": [
     {
       "name": "Expand search history",
@@ -73,6 +73,40 @@
     {
       "name": "Hide ads",
       "description": "Stops the app from loading banner, interstitial, native and app open ads, and removes the empty space reserved for the banner.",
+      "default": true,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.tsumii.trainschedule",
+          "name": "火車時刻表",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#1E88E5",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.3.4",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            },
+            {
+              "version": null,
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Hide promotions",
+      "description": "Stops the subscription promotion popups (discount, holiday sale and widget intro) that only free users see. Paid features are not unlocked.",
       "default": true,
       "category": null,
       "compatiblePackages": [

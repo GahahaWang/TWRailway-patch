@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.6.0...v1.7.0) (2026-11-07)
+
+### ✨ New Features
+
+* Add Hide promotions patch ([978ba6e](https://github.com/GahahaWang/TWRailway-patch/commit/978ba6eee5ddd04d1b57943f8fc8769203cfe641))
+
 ## [1.6.0](https://github.com/GahahaWang/TWRailway-patch/compare/v1.5.0...v1.6.0) (2026-11-07)
 
 ### ✨ New Features
