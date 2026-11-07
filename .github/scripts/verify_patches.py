@@ -2,8 +2,9 @@
 
 - Hide ads: the google_mobile_ads Flutter plugin's onMethodCall handler starts with the
   injected no-fill failure and early return for every `load*` method channel call.
-- Hide review prompt: the shared_preferences getBool implementations start with the
-  injected overrides for the review dialog keys.
+- Hide review prompt: the arm64 libapp.so's AppController.canShowReview always returns false
+  (`b` in place of `cbnz x2`), and the shared_preferences getBool implementations start with
+  the injected overrides for the review dialog keys.
 - Fix recent apps title: the Flutter embedding's setApplicationSwitcherDescription starts
   with the injected check that replaces an untranslated key label with the app's label.
 - Expand search history: the arm64 libapp.so computes the visible search history limit as
@@ -60,12 +61,33 @@ def find_review_hooks(dex_files):
     return hooks
 
 
-def check_hide_review_prompt(dex_files):
+# mov x0, #5; sdiv x3, x1, x0; msub x2, x3, x0, x1; cmp x2, xzr; b.lt; cbnz x2 / b (return false);
+# ldur x1, [fp, #-8].
+REVIEW_CHECK_HEAD = bytes.fromhex("a00080d2230cc09a6284009b5f001feb cb050054".replace(" ", ""))
+REVIEW_CHECK_TAIL = bytes.fromhex("a1835ff8")
+REVIEW_CBNZ = bytes.fromhex("e20400b5")
+REVIEW_B = bytes.fromhex("27000014")
+
+
+def check_hide_review_prompt(apk_path, dex_files):
     hooks = find_review_hooks(dex_files)
     for hook in hooks:
         print(f"[OK] review prompt hook in {hook}")
     if not hooks:
         print("[MISSING] review prompt hook")
+        return False
+
+    with zipfile.ZipFile(apk_path) as apk:
+        names = [n for n in apk.namelist() if n.startswith("lib/arm64-v8a/") and n.endswith("/libapp.so")]
+        data = apk.read(names[0]) if names else b""
+    patched = original = 0
+    for start in find_aligned(data, REVIEW_CHECK_HEAD):
+        if data[start + 24:start + 28] == REVIEW_CHECK_TAIL:
+            branch = data[start + 20:start + 24]
+            patched += branch == REVIEW_B
+            original += branch == REVIEW_CBNZ
+    print(f"[{'OK' if patched == 1 and original == 0 else 'MISSING'}] canShowReview returns false x{patched}, original x{original}")
+    if patched != 1 or original != 0:
         return False
     print("Hide review prompt patch is applied")
     return True
@@ -315,7 +337,7 @@ def main():
     dex_files = load_dex_files(sys.argv[1])
     results = [
         check_hide_ads(dex_files),
-        check_hide_review_prompt(dex_files),
+        check_hide_review_prompt(sys.argv[1], dex_files),
         check_fix_recent_apps_title(dex_files),
         check_expand_search_history(sys.argv[1]),
         check_hide_upgrade_button(sys.argv[1]),

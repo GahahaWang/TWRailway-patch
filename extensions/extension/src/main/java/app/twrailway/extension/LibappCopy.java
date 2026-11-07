@@ -30,6 +30,7 @@ import java.util.zip.ZipFile;
  *   <li>Hide upgrade button: whether the subscribe button of the search pages is shown.</li>
  *   <li>Fix search history count: the limit shown in the count next to 搜尋歷史, and its
  *   "升級" text.</li>
+ *   <li>Hide review prompt: whether the "喜歡這個App嗎？" dialog can be shown.</li>
  * </ul>
  */
 @SuppressWarnings("unused")
@@ -53,6 +54,15 @@ public final class LibappCopy {
     private static final int TBNZ_W0_4_BUTTON = 0x372000a0;
     private static final int[] UPGRADE_BUTTON_TAIL = {0xf97ba360, 0xaa1d03ef, 0xa8c179fd, 0xd65f03c0};
     private static final int UPGRADE_BUTTON_LENGTH = 4 * (UPGRADE_BUTTON_HEAD.length + 2 + UPGRADE_BUTTON_TAIL.length);
+
+    // Review dialog: AppController.canShowReview returns false at once, where the patch replaces
+    // `cbnz x2, return_false` (successUsageCount % 5 != 0) with `b return_false`.
+    // See HideReviewPromptPatch.
+    private static final int[] REVIEW_CHECK_HEAD = {0xd28000a0, 0x9ac00c23, 0x9b008462, 0xeb1f005f, 0x540005cb};
+    private static final int CBNZ_X2_RETURN_FALSE = 0xb50004e2;
+    private static final int B_RETURN_FALSE = 0x14000027;
+    private static final int[] REVIEW_CHECK_TAIL = {0xf85f83a1};
+    private static final int REVIEW_CHECK_LENGTH = 4 * (REVIEW_CHECK_HEAD.length + 1 + REVIEW_CHECK_TAIL.length);
 
     // Search history count, see FixSearchHistoryCountPatch: the clamp of the count in
     // HistoryUpgradeBadge.build, the limit passed by the search page, and the badge text.
@@ -94,6 +104,8 @@ public final class LibappCopy {
             }
             boolean showUpgradeButton = applied.contains(PatchSettings.HIDE_UPGRADE_BUTTON)
                     && !PatchSettings.hideUpgradeButton(appContext);
+            boolean showReviewPrompt = applied.contains(PatchSettings.HIDE_REVIEW_PROMPT)
+                    && !PatchSettings.hideReviewPrompt(appContext);
 
             // -1: leave as installed, 0: restore the app's own badge, else the limit to show.
             // The installed libapp.so shows the maximum, the limit of the expanded history.
@@ -108,7 +120,7 @@ public final class LibappCopy {
                 }
             }
 
-            if (searchHistoryLimit < 0 && !showUpgradeButton && countLimit < 0) {
+            if (searchHistoryLimit < 0 && !showUpgradeButton && countLimit < 0 && !showReviewPrompt) {
                 // The installed libapp.so already matches the settings.
                 deleteCopies(directory, null);
                 return args;
@@ -118,6 +130,7 @@ public final class LibappCopy {
                     + (searchHistoryLimit < 0 ? "" : searchHistoryLimit == 0 ? "-history-original" : "-history-" + searchHistoryLimit)
                     + (showUpgradeButton ? "-upgrade-button" : "")
                     + (countLimit < 0 ? "" : countLimit == 0 ? "-count-original" : "-count-" + countLimit)
+                    + (showReviewPrompt ? "-review" : "")
                     + ".so";
             File copy = new File(directory, name);
             File stamp = new File(directory, name + ".source");
@@ -138,6 +151,10 @@ public final class LibappCopy {
                 }
                 if (countLimit >= 0 && !setSearchHistoryCount(library, countLimit)) {
                     Log.w(PatchSettings.TAG, "Could not find the search history count in libapp.so");
+                    return args;
+                }
+                if (showReviewPrompt && !restoreReviewPrompt(library)) {
+                    Log.w(PatchSettings.TAG, "Could not find the review check in libapp.so");
                     return args;
                 }
                 if (!directory.isDirectory() && !directory.mkdirs()) return args;
@@ -259,6 +276,23 @@ public final class LibappCopy {
         }
         if (found.isEmpty() || found.size() > 2) return false;
         for (int offset : found) writeInt(library, offset + 24, TBNZ_W0_4_BUTTON);
+        return true;
+    }
+
+    /** Puts back the check that lets AppController.canShowReview show the review dialog. */
+    private static boolean restoreReviewPrompt(byte[] library) {
+        int found = -1;
+        int branch = 4 * REVIEW_CHECK_HEAD.length;
+        for (int offset = 0; offset + REVIEW_CHECK_LENGTH <= library.length; offset += 4) {
+            if (matches(library, offset, REVIEW_CHECK_HEAD)
+                    && readInt(library, offset + branch) == B_RETURN_FALSE
+                    && matches(library, offset + branch + 4, REVIEW_CHECK_TAIL)) {
+                if (found != -1) return false;
+                found = offset;
+            }
+        }
+        if (found == -1) return false;
+        writeInt(library, found + branch, CBNZ_X2_RETURN_FALSE);
         return true;
     }
 

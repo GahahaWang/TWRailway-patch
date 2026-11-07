@@ -12,7 +12,7 @@ final class Strings {
     static final String HIDE_ADS = "隱藏廣告";
     static final String HIDE_ADS_SUMMARY = "不載入橫幅、插頁、原生與開啟應用程式廣告，並移除底部廣告空白。已載入的廣告在重新啟動後才會消失。";
     static final String HIDE_REVIEW_PROMPT = "隱藏評分彈窗";
-    static final String HIDE_REVIEW_PROMPT_SUMMARY = "不再跳出「App好用嗎？」請你評分的彈窗。";
+    static final String HIDE_REVIEW_PROMPT_SUMMARY = "不再跳出「喜歡這個App嗎？」請你評分的彈窗。重新啟動 App 後生效。";
     static final String HIDE_UPGRADE_BUTTON = "隱藏付費推廣按鈕";
     static final String HIDE_UPGRADE_BUTTON_SUMMARY = "台鐵與高鐵搜尋頁不再顯示「付費移除廣告」之類的訂閱按鈕。重新啟動 App 後生效。";
     static final String HIDE_PROMOTIONS = "隱藏付費推廣彈窗";
