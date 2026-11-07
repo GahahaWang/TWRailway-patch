@@ -6,6 +6,8 @@
   injected overrides for the review dialog keys.
 - Fix recent apps title: the Flutter embedding's setApplicationSwitcherDescription starts
   with the injected check that replaces an untranslated key label with the app's label.
+- Expand search history: the arm64 libapp.so computes the visible search history limit as
+  20 whatever the subscription state (`mov x0, #0x22` in place of `csetm x0, eq`).
 """
 import sys
 import zipfile
@@ -88,6 +90,29 @@ def check_fix_recent_apps_title(dex_files):
     return True
 
 
+# csetm x0, eq / mov x0, #0x22, followed by mov x16, #0x22; and x0, x0, x16; add x0, x0, #6.
+HISTORY_LIMIT_TAIL = bytes.fromhex("500480d20000108a00180091")
+HISTORY_LIMIT_ORIGINAL = bytes.fromhex("e0139fda") + HISTORY_LIMIT_TAIL
+HISTORY_LIMIT_PATCHED = bytes.fromhex("400480d2") + HISTORY_LIMIT_TAIL
+
+
+def check_expand_search_history(apk_path):
+    with zipfile.ZipFile(apk_path) as apk:
+        names = [n for n in apk.namelist() if n.startswith("lib/arm64-v8a/") and n.endswith("/libapp.so")]
+        if not names:
+            print("[MISSING] lib/arm64-v8a/libapp.so")
+            return False
+        data = apk.read(names[0])
+    patched = data.count(HISTORY_LIMIT_PATCHED)
+    original = data.count(HISTORY_LIMIT_ORIGINAL)
+    print(f"{names[0]}: patched limit x{patched}, original limit x{original}")
+    if patched != 1 or original != 0:
+        print("[MISSING] search history limit patch")
+        return False
+    print("Expand search history patch is applied")
+    return True
+
+
 def check_hide_ads(dex_files):
     class_name, instructions = find_handler(dex_files)
     if class_name is None:
@@ -120,6 +145,7 @@ def main():
         check_hide_ads(dex_files),
         check_hide_review_prompt(dex_files),
         check_fix_recent_apps_title(dex_files),
+        check_expand_search_history(sys.argv[1]),
     ]
     if not all(results):
         sys.exit("Some patches were NOT applied")
